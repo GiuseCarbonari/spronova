@@ -25,23 +25,28 @@ const STYLES: Record<
   },
 };
 
+/** Parola grande in italiano (dal glossario sez. 1). */
+const HUMAN_LABELS: Record<ReadinessResult["decision"], string> = {
+  GO: "Via libera",
+  MODIFY: "Vai più piano oggi",
+  SKIP: "Oggi riposa",
+};
+
+/** Frase sotto (trascritta esatta dal glossario sez. 1). */
 const COPY: Record<
   ReadinessResult["decision"],
-  { title: string; fallback: string; action: string }
+  { phrase: string; action: string }
 > = {
   GO: {
-    title: "Sei pronto per la seduta prevista.",
-    fallback: "Nessun segnale critico rilevato nei dati di oggi.",
+    phrase: "Sei pronto per la seduta prevista.",
     action: "Apri il piano di oggi",
   },
   MODIFY: {
-    title: "Oggi conviene adattare il carico.",
-    fallback: "Almeno un segnale suggerisce una seduta più controllata.",
+    phrase: "I tuoi segnali suggeriscono di alleggerire.",
     action: "Controlla il piano adattato",
   },
   SKIP: {
-    title: "Oggi il recupero viene prima.",
-    fallback: "I segnali disponibili indicano di evitare la seduta prevista.",
+    phrase: "Il corpo ha bisogno di recupero. Meglio fermarsi.",
     action: "Controlla il piano di recupero",
   },
 };
@@ -80,11 +85,11 @@ export function ReadinessHero({
 }) {
   const styles = STYLES[readiness.decision];
   const copy = COPY[readiness.decision];
+  const humanLabel = HUMAN_LABELS[readiness.decision];
+
   const signals = readiness.signals.filter(
     (signal) => signal.status === "amber" || signal.status === "red"
   );
-  const visibleSignals = signals.slice(0, 3);
-  const hiddenSignals = signals.slice(3);
 
   return (
     <section
@@ -104,43 +109,43 @@ export function ReadinessHero({
       </div>
 
       <div className="mt-6 grid gap-6 md:grid-cols-[minmax(170px,0.7fr)_minmax(0,1.3fr)] md:items-start md:gap-10">
+        {/* Colonna sinistra: parola umana grande + sigla tecnica piccola */}
         <div>
           <p
             className={cn(
-              "text-[46px] font-semibold leading-none tracking-[-0.045em] sm:text-[56px]",
+              "text-[40px] font-semibold leading-tight tracking-[-0.04em] sm:text-[50px]",
               styles.text
             )}
           >
+            {humanLabel}
+          </p>
+          <p className="mt-1 text-xs font-medium tracking-[0.06em] text-muted">
             {readiness.decision}
           </p>
         </div>
 
+        {/* Colonna destra: frase + "Perché?" + bottone */}
         <div className="max-w-xl">
           <h2 className="text-xl font-medium leading-snug tracking-[-0.02em] text-foreground sm:text-[22px]">
-            {copy.title}
+            {copy.phrase}
           </h2>
 
-          <div className="mt-3">
-            {visibleSignals.length > 0 ? (
-              <SignalList signals={visibleSignals} />
-            ) : (
-              <p className="text-sm leading-relaxed text-secondary">
-                {copy.fallback}
-              </p>
-            )}
-          </div>
-
-          {hiddenSignals.length > 0 && (
-            <details className="group mt-3 text-sm">
-              <summary className="min-h-10 cursor-pointer list-none py-2 text-muted transition-colors hover:text-foreground">
-                <span className="group-open:hidden">
-                  Mostra altri {hiddenSignals.length} segnali
-                </span>
-                <span className="hidden group-open:inline">Nascondi dettagli</span>
-              </summary>
-              <SignalList signals={hiddenSignals} />
-            </details>
-          )}
+          {/* Link "Perché?" che apre i segnali determinanti */}
+          <details className="group mt-3">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-sm text-muted transition-colors hover:text-foreground">
+              <span className="group-open:hidden">Perché? ▾</span>
+              <span className="hidden group-open:inline">Nascondi segnali ▴</span>
+            </summary>
+            <div className="mt-3">
+              {signals.length > 0 ? (
+                <SignalList signals={signals} />
+              ) : (
+                <p className="text-sm leading-relaxed text-secondary">
+                  Nessun segnale critico rilevato nei dati di oggi.
+                </p>
+              )}
+            </div>
+          </details>
 
           <Button asChild variant="outline" className="mt-5 w-full sm:w-auto">
             <Link href="/plan">{copy.action}</Link>
