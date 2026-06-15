@@ -69,6 +69,28 @@ function formatDuration(secs: number | null): string {
 const SVG_W = 1000;
 const SVG_H = 200;
 
+function climbVisual(avgGradientPct: number) {
+  if (avgGradientPct < 5) {
+    return {
+      fill: "var(--amber-dim)",
+      stroke: "var(--text-primary)",
+      opacity: 0.65,
+    };
+  }
+  if (avgGradientPct < 8) {
+    return {
+      fill: "var(--amber-hover)",
+      stroke: "var(--amber-hover)",
+      opacity: 0.18,
+    };
+  }
+  return {
+    fill: "var(--amber)",
+    stroke: "var(--amber)",
+    opacity: 0.3,
+  };
+}
+
 function ElevationProfile({ terrain }: { terrain: TerrainSummary }) {
   const polyline = terrain.polyline;
   if (polyline.length < 2) {
@@ -94,6 +116,21 @@ function ElevationProfile({ terrain }: { terrain: TerrainSummary }) {
     )
     .join(" ");
   const areaPath = `${linePath} L ${SVG_W} ${SVG_H} L 0 ${SVG_H} Z`;
+  const climbPaths = terrain.climbs.map((climb) => {
+    const start = climb.position_km;
+    const end = climb.position_km + climb.distance_km;
+    const points = polyline.filter(
+      (point) => point[0] >= start && point[0] <= end
+    );
+    return points.length >= 2
+      ? points
+          .map(
+            (point, index) =>
+              `${index === 0 ? "M" : "L"} ${x(point[0]).toFixed(1)} ${y(point[3]).toFixed(1)}`
+          )
+          .join(" ")
+      : null;
+  });
 
   return (
     <svg
@@ -106,26 +143,55 @@ function ElevationProfile({ terrain }: { terrain: TerrainSummary }) {
       {terrain.climbs.map((climb, index) => {
         const start = x(climb.position_km);
         const end = x(climb.position_km + climb.distance_km);
+        const visual = climbVisual(climb.avg_gradient_pct);
         return (
-          <rect
-            key={index}
-            x={start}
-            y={0}
-            width={Math.max(1, end - start)}
-            height={SVG_H}
-            fill="var(--amber)"
-            opacity={0.1}
-          />
+          <g key={index}>
+            <rect
+              x={start}
+              y={0}
+              width={Math.max(1, end - start)}
+              height={SVG_H}
+              fill={visual.fill}
+              opacity={visual.opacity}
+            />
+            <line
+              x1={start}
+              y1={0}
+              x2={start}
+              y2={SVG_H}
+              stroke={visual.stroke}
+              strokeWidth={1.5}
+              opacity={0.9}
+              vectorEffect="non-scaling-stroke"
+            />
+          </g>
         );
       })}
-      <path d={areaPath} fill="var(--amber)" opacity={0.1} />
+      <path d={areaPath} fill="var(--amber)" opacity={0.07} />
       <path
         d={linePath}
         fill="none"
-        stroke="var(--amber)"
+        stroke="var(--text-faint)"
         strokeWidth={2}
+        opacity={0.9}
         vectorEffect="non-scaling-stroke"
       />
+      {terrain.climbs.map((climb, index) => {
+        const path = climbPaths[index];
+        if (!path) return null;
+        const visual = climbVisual(climb.avg_gradient_pct);
+        return (
+          <path
+            key={`climb-${index}`}
+            d={path}
+            fill="none"
+            stroke={visual.stroke}
+            strokeWidth={3}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        );
+      })}
     </svg>
   );
 }
@@ -172,9 +238,11 @@ export function EventAnalysis({
 
       <div className="mt-6 overflow-hidden rounded-[11px] border border-border bg-base px-2 pt-3">
         <ElevationProfile terrain={terrain} />
-        <p className="border-t border-border px-2 py-2 text-xs text-muted">
-          Le bande ambra indicano le salite rilevate nel GPX.
-        </p>
+        <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-border px-2 py-2 text-xs text-muted">
+          <ClimbLegend color="bg-amber-dim" label="dolce · sotto 5%" />
+          <ClimbLegend color="bg-amber-hover" label="impegnativa · 5–8%" />
+          <ClimbLegend color="bg-amber" label="ripida · oltre 8%" />
+        </div>
       </div>
 
       {terrain.climbs.length > 0 && (
@@ -271,6 +339,18 @@ export function EventAnalysis({
         </p>
       </details>
     </section>
+  );
+}
+
+function ClimbLegend({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span
+        className={`h-2.5 w-4 rounded-[3px] border border-border ${color}`}
+        aria-hidden
+      />
+      {label}
+    </span>
   );
 }
 

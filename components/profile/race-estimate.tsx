@@ -21,8 +21,8 @@ function formatHm(seconds: number): string {
 }
 
 function speedColor(kmh: number): string {
-  if (kmh < 6) return "var(--text-muted)";
-  if (kmh < 12) return "var(--text-secondary)";
+  if (kmh < 8) return "var(--text-primary)";
+  if (kmh < 18) return "var(--amber-hover)";
   return "var(--amber)";
 }
 
@@ -69,7 +69,27 @@ function PacingChart({
       role="img"
       aria-label="Profilo altimetrico con velocità stimata nello scenario realistico"
     >
-      <path d={elevationArea} fill="var(--amber)" opacity={0.08} />
+      {[0.25, 0.5, 0.75].map((ratio) => (
+        <line
+          key={ratio}
+          x1={0}
+          y1={SVG_H * ratio}
+          x2={SVG_W}
+          y2={SVG_H * ratio}
+          stroke="var(--bg-border)"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+      <path d={elevationArea} fill="var(--amber)" opacity={0.06} />
+      <path
+        d={elevationPath}
+        fill="none"
+        stroke="var(--text-faint)"
+        strokeWidth={1}
+        opacity={0.75}
+        vectorEffect="non-scaling-stroke"
+      />
       {segments.slice(0, -1).map((segment, index) => {
         const next = segments[index + 1];
         return (
@@ -80,7 +100,8 @@ function PacingChart({
             x2={x(next.km)}
             y2={ySpeed(next.speed_kmh)}
             stroke={speedColor(segment.speed_kmh)}
-            strokeWidth={2}
+            strokeWidth={3}
+            strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
           />
         );
@@ -187,9 +208,9 @@ export function RaceEstimateView({
         <div className="mt-3 overflow-hidden rounded-[11px] border border-border bg-base px-2 pt-3">
           <PacingChart terrain={terrain} estimate={estimate} />
           <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-border px-2 py-2 text-xs text-muted">
-            <Legend color="bg-amber" label="tratti veloci" />
-            <Legend color="bg-secondary" label="ritmo intermedio" />
-            <Legend color="bg-muted" label="salita ripida, sotto 6 km/h" />
+            <Legend color="bg-amber" label="veloce · oltre 18 km/h" />
+            <Legend color="bg-amber-hover" label="intermedia · 8–18 km/h" />
+            <Legend color="bg-foreground" label="lenta · sotto 8 km/h" />
           </div>
         </div>
       </div>

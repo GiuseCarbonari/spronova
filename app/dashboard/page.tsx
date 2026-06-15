@@ -5,9 +5,9 @@ import { SyncButton } from "@/components/dashboard/sync-button";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { MetricStat } from "@/components/ui/metric-stat";
 import { MetricStrip } from "@/components/ui/metric-strip";
 import { SectionHeader } from "@/components/ui/section-header";
-import { Stat } from "@/components/ui/stat";
 import type { MirrorData } from "@/lib/intervals/sync";
 import { createClient } from "@/lib/supabase/server";
 
@@ -42,6 +42,119 @@ function MetricValue({
   }
   const formatted = value.toFixed(decimals);
   return <span>{showSign && value > 0 ? `+${formatted}` : formatted}</span>;
+}
+
+const METRIC_COPY = {
+  ctl: {
+    label: "Forma fisica",
+    acronym: "CTL",
+    tooltip:
+      "Quanto allenamento hai accumulato nelle ultime settimane. Più è alta, più sei 'in forma' di fondo. Cresce lentamente con l'allenamento costante.",
+  },
+  atl: {
+    label: "Fatica recente",
+    acronym: "ATL",
+    tooltip:
+      "Quanto sei stanco per gli allenamenti degli ultimi giorni. Sale dopo sessioni dure, scende col riposo.",
+  },
+  tsb: {
+    label: "Freschezza",
+    acronym: "TSB",
+    tooltip:
+      "Quanto sei riposato rispetto al tuo carico. Positivo = fresco e scattante. Leggermente negativo è NORMALE quando ti alleni sodo: significa che stai costruendo forma.",
+  },
+  acwr: {
+    label: "Equilibrio del carico",
+    acronym: "ACWR",
+    tooltip:
+      "Confronta quanto ti alleni adesso rispetto alle ultime settimane. Tra 0.8 e 1.3 è la zona sicura. Troppo alto = rischio di strafare.",
+  },
+  hrv: {
+    label: "Variabilità cardiaca",
+    acronym: "HRV",
+    tooltip:
+      "Quanto varia il tempo tra un battito e l'altro a riposo. Più è alta, più il tuo sistema nervoso è recuperato. Si misura al mattino con una fascia cardio o uno smartwatch compatibile.",
+  },
+  rhr: {
+    label: "Battito a riposo",
+    acronym: "RHR",
+    tooltip:
+      "I tuoi battiti al minuto da fermo. Se sale di colpo, spesso è segno di stanchezza o di un malanno in arrivo. Si misura al mattino.",
+  },
+} as const;
+
+function ctlState(current: number | null, previous: number | null) {
+  if (current == null || previous == null) return null;
+  if (current > previous) {
+    return { status: "in crescita", direction: "up" as const };
+  }
+  if (current < previous) {
+    return { status: "in calo", direction: "down" as const };
+  }
+  return { status: "stabile" };
+}
+
+function atlState(atl: number | null, ctl: number | null) {
+  if (atl == null || ctl == null || ctl === 0) return null;
+  const ratio = atl / ctl;
+  if (ratio < 0.8) return "bassa";
+  if (ratio <= 1.3) return "moderata";
+  return "alta";
+}
+
+function tsbState(value: number | null) {
+  if (value == null) return null;
+  if (value > 5) {
+    return { status: "fresco", tone: "positive" as const };
+  }
+  if (value >= -10) {
+    return { status: "equilibrato", tone: "neutral" as const };
+  }
+  if (value >= -30) {
+    return {
+      status: "sotto carico (normale in costruzione)",
+      tone: "neutral" as const,
+    };
+  }
+  return { status: "molto affaticato", tone: "warning" as const };
+}
+
+function acwrState(value: number | null) {
+  if (value == null) return null;
+  if (value < 0.8) {
+    return { status: "carico leggero", tone: "neutral" as const };
+  }
+  if (value <= 1.3) {
+    return { status: "equilibrato", tone: "positive" as const };
+  }
+  if (value <= 1.5) {
+    return { status: "carico alto", tone: "warning" as const };
+  }
+  return { status: "rischio sovraccarico", tone: "danger" as const };
+}
+
+const DATA_QUALITY_COPY = {
+  4: {
+    label: "Dati completi",
+    className: "text-ready-go",
+  },
+  3: {
+    label: "Dati buoni — manca il recupero mattutino (HRV/battito)",
+    className: "text-secondary",
+  },
+  2: {
+    label: "Dati base — il coach è più prudente",
+    className: "text-ready-modify",
+  },
+  1: {
+    label: "Dati minimi — collega più sensori per consigli precisi",
+    className: "text-ready-modify",
+  },
+} as const;
+
+function dataQualityCopy(level: number | null | undefined) {
+  if (level !== 1 && level !== 2 && level !== 3 && level !== 4) return null;
+  return DATA_QUALITY_COPY[level];
 }
 
 /** Secondi → "1h 23m" per la lista attività. */
@@ -90,11 +203,17 @@ export default async function DashboardPage() {
 
   // Wellness di oggi = ultima riga della finestra 30g (ordinata per data).
   const wellnessToday = mirror?.wellness_30d.at(-1) ?? null;
+  const wellnessPrevious = mirror?.wellness_30d.at(-2) ?? null;
   const ctl = wellnessToday?.ctl ?? null;
   const atl = wellnessToday?.atl ?? null;
   // TSB/ACWR: stesse semplici operazioni della readiness (lettura, non derivazione).
   const tsb = ctl != null && atl != null ? ctl - atl : null;
   const acwr = ctl != null && atl != null ? (ctl === 0 ? 0 : atl / ctl) : null;
+  const ctlStatus = ctlState(ctl, wellnessPrevious?.ctl ?? null);
+  const atlStatus = atlState(atl, ctl);
+  const tsbStatus = tsbState(tsb);
+  const acwrStatus = acwrState(acwr);
+  const dataQuality = dataQualityCopy(snapshot?.data_quality_level);
 
   const recentActivities = mirror
     ? [...mirror.activities_90d]
@@ -109,11 +228,14 @@ export default async function DashboardPage() {
         title={`Ciao ${name}`}
         description={
           <>
-            Dati Intervals.icu aggiornati con qualità{" "}
-            <span className="font-medium text-foreground">
-              {snapshot?.data_quality_level ?? "—"}/4
-            </span>
-            .{" "}
+            {dataQuality && (
+              <>
+                <span className={`font-medium ${dataQuality.className}`}>
+                  {dataQuality.label}
+                </span>
+                .{" "}
+              </>
+            )}
             <a
               href="/settings/profile"
               className="text-muted underline-offset-4 transition-colors hover:text-foreground hover:underline"
@@ -153,25 +275,49 @@ export default async function DashboardPage() {
             title="Metriche di oggi"
           />
           <MetricStrip>
-            <Stat label="CTL" value={<MetricValue value={ctl} />} />
-            <Stat label="ATL" value={<MetricValue value={atl} />} />
-            <Stat
-              label="TSB"
+            <MetricStat
+              {...METRIC_COPY.ctl}
+              value={<MetricValue value={ctl} />}
+              status={ctlStatus?.status}
+              direction={ctlStatus?.direction}
+              tone="neutral"
+            />
+            <MetricStat
+              {...METRIC_COPY.atl}
+              value={<MetricValue value={atl} />}
+              status={atlStatus ?? undefined}
+              tone="neutral"
+            />
+            <MetricStat
+              {...METRIC_COPY.tsb}
               value={<MetricValue value={tsb} showSign />}
-              accent
+              status={tsbStatus?.status}
+              tone={tsbStatus?.tone}
             />
-            <Stat
-              label="ACWR"
+            <MetricStat
+              {...METRIC_COPY.acwr}
               value={<MetricValue value={acwr} decimals={2} />}
+              status={acwrStatus?.status}
+              tone={acwrStatus?.tone}
             />
-            <Stat
-              label="HRV"
+            <MetricStat
+              {...METRIC_COPY.hrv}
               value={<MetricValue value={wellnessToday?.hrv} decimals={0} />}
+              status={
+                wellnessToday?.hrv == null
+                  ? "Collega una misurazione mattutina per attivarla"
+                  : undefined
+              }
             />
-            <Stat
-              label="RHR"
+            <MetricStat
+              {...METRIC_COPY.rhr}
               value={
                 <MetricValue value={wellnessToday?.restingHR} decimals={0} />
+              }
+              status={
+                wellnessToday?.restingHR == null
+                  ? "Collega una misurazione mattutina per attivarla"
+                  : undefined
               }
             />
           </MetricStrip>

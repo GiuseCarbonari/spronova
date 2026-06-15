@@ -109,32 +109,32 @@ export function ReadinessHero({
       </div>
 
       <div className="mt-6 grid gap-6 md:grid-cols-[minmax(170px,0.7fr)_minmax(0,1.3fr)] md:items-start md:gap-10">
-        {/* Colonna sinistra: parola umana grande + sigla tecnica piccola */}
+        {/* Parola umana dominante, con codice tecnico sempre visibile. */}
         <div>
-          <p
-            className={cn(
-              "text-[40px] font-semibold leading-tight tracking-[-0.04em] sm:text-[50px]",
-              styles.text
-            )}
-          >
-            {humanLabel}
-          </p>
-          <p className="mt-1 text-xs font-medium tracking-[0.06em] text-muted">
-            {readiness.decision}
-          </p>
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <p
+              className={cn(
+                "text-[40px] font-semibold leading-tight tracking-[-0.04em] sm:text-[50px]",
+                styles.text
+              )}
+            >
+              {humanLabel}
+            </p>
+            <span className="text-xs font-medium tracking-[0.06em] text-muted">
+              · {readiness.decision}
+            </span>
+          </div>
         </div>
 
-        {/* Colonna destra: frase + "Perché?" + bottone */}
+        {/* Frase letterale del glossario e segnali determinanti. */}
         <div className="max-w-xl">
           <h2 className="text-xl font-medium leading-snug tracking-[-0.02em] text-foreground sm:text-[22px]">
             {copy.phrase}
           </h2>
 
-          {/* Link "Perché?" che apre i segnali determinanti */}
           <details className="group mt-3">
-            <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-sm text-muted transition-colors hover:text-foreground">
-              <span className="group-open:hidden">Perché? ▾</span>
-              <span className="hidden group-open:inline">Nascondi segnali ▴</span>
+            <summary className="inline-flex min-h-10 cursor-pointer list-none items-center text-sm text-muted underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber">
+              Perché?
             </summary>
             <div className="mt-3">
               {signals.length > 0 ? (

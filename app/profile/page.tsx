@@ -14,9 +14,11 @@ import {
 import { GapAnalysisButton } from "@/components/profile/gap-analysis-button";
 import { HowToRead } from "@/components/profile/how-to-read";
 import { InfoTooltip } from "@/components/profile/info-tooltip";
+import { PROFILE_METRIC_COPY } from "@/components/profile/profile-metric-copy";
 import { ProfileSectionNav } from "@/components/profile/profile-section-nav";
 import { RaceEstimateView } from "@/components/profile/race-estimate";
 import { Button } from "@/components/ui/button";
+import { MetricStat } from "@/components/ui/metric-stat";
 import { MetricStrip } from "@/components/ui/metric-strip";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Stat } from "@/components/ui/stat";
@@ -123,16 +125,14 @@ export default async function ProfilePage() {
             />
 
             <MetricStrip columns={4}>
-              <Stat
-                label="Critical Power"
+              <MetricStat
+                {...PROFILE_METRIC_COPY.cp}
                 value={cpw ? `${Math.round(cpw.cp_w)} W` : "—"}
-                detail={cpw ? "Letta da Intervals.icu" : "Modello non disponibile"}
                 accent
               />
-              <Stat
-                label="W′"
+              <MetricStat
+                {...PROFILE_METRIC_COPY.wprime}
                 value={cpw ? `${cpw.w_prime_kj.toFixed(1)} kJ` : "—"}
-                detail="Riserva sopra Critical Power"
               />
               <Stat
                 label="Potenza massima"
@@ -145,17 +145,16 @@ export default async function ProfilePage() {
                       ? "Modello Morton 3P"
                       : "Modello MS 2P"
                     : "Dato non disponibile"
-                }
+                  }
               />
-              <Stat
-                label="APR ratio"
+              <MetricStat
+                {...PROFILE_METRIC_COPY.apr}
                 value={apr ? apr.apr_ratio.toFixed(2) : "—"}
-                detail={apr ? `${Math.round(apr.apr)} W di riserva` : "Dato non disponibile"}
               />
             </MetricStrip>
 
             {apr && (
-              <div className="grid gap-4 border-y border-border py-5 sm:grid-cols-3">
+              <dl className="grid gap-4 border-y border-border py-5 sm:grid-cols-3">
                 <div>
                   <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
                     MSP <InfoTooltip term="msp" />
@@ -164,19 +163,16 @@ export default async function ProfilePage() {
                     {Math.round(apr.msp)} W
                   </p>
                 </div>
-                <div>
-                  <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
-                    Riserva anaerobica <InfoTooltip term="apr" />
-                  </p>
-                  <p className="mt-1 text-xl font-medium text-foreground">
-                    {Math.round(apr.apr)} W
-                  </p>
-                </div>
+                <MetricStat
+                  {...PROFILE_METRIC_COPY.apr}
+                  value={`${Math.round(apr.apr)} W`}
+                  className="p-0 sm:p-0"
+                />
                 <p className="self-end text-xs leading-5 text-faint">
                   Il rapporto usa la CP come denominatore. La MAP restituita da
                   Intervals.icu non viene usata come riferimento.
                 </p>
-              </div>
+              </dl>
             )}
 
             <div>

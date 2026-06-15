@@ -1,6 +1,8 @@
 import type { AthleteProfileData } from "@/lib/profile/build-profile";
 import { ExplainButton } from "@/components/profile/explain-button";
 import { InfoTooltip } from "@/components/profile/info-tooltip";
+import { PROFILE_METRIC_COPY } from "@/components/profile/profile-metric-copy";
+import { MetricStat } from "@/components/ui/metric-stat";
 import { MetricStrip } from "@/components/ui/metric-strip";
 import { Stat } from "@/components/ui/stat";
 
@@ -101,13 +103,16 @@ export function AthleteSummary({
       </div>
 
       <MetricStrip columns={4} className="mt-7">
-        <Stat label="Critical Power" value={cp ? `${cp.cp_w} W` : "—"} />
-        <Stat
-          label="Potenza relativa"
+        <MetricStat
+          {...PROFILE_METRIC_COPY.cp}
+          value={cp ? `${cp.cp_w} W` : "—"}
+        />
+        <MetricStat
+          {...PROFILE_METRIC_COPY.wkg}
           value={cp?.cp_wkg != null ? `${cp.cp_wkg.toFixed(2)} W/kg` : "—"}
         />
-        <Stat
-          label="Riserva W′"
+        <MetricStat
+          {...PROFILE_METRIC_COPY.wprime}
           value={cp ? `${cp.w_prime_kj.toFixed(1)} kJ` : "—"}
         />
         <Stat
