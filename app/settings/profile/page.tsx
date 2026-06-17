@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { AppShell } from "@/components/layout/app-shell";
+import { LiminaShell } from "@/components/layout/limina-shell";
 import { SettingsDossierForm } from "@/components/settings/dossier-form";
 import {
   DOSSIER_COLUMNS,
@@ -29,8 +29,8 @@ export default async function SettingsProfilePage() {
     .maybeSingle<DossierRow>();
 
   return (
-    <AppShell>
+    <LiminaShell>
       <SettingsDossierForm initialForm={rowToForm(row)} />
-    </AppShell>
+    </LiminaShell>
   );
 }

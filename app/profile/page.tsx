@@ -355,7 +355,7 @@ export default async function ProfilePage() {
 
               {signatureLevel != null && !raceEstimate && (
                 <p className="rounded-[14px] border border-border bg-surface px-4 py-4 text-sm text-secondary">
-                  Firma pronta. Rianalizza l'evento per generare la stima.
+                  Firma pronta. Rianalizza l&apos;evento per generare la stima.
                 </p>
               )}
             </section>

@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
 import { OnboardingWizard } from "@/components/onboarding/wizard";
-import { AppShell } from "@/components/layout/app-shell";
 import {
   DOSSIER_COLUMNS,
   FIRST_STEP,
@@ -47,12 +46,20 @@ export default async function OnboardingPage() {
   const initialStep = Math.min(Math.max(savedStep, FIRST_STEP), LAST_STEP);
 
   return (
-    <AppShell>
-      <OnboardingWizard
-        initialForm={rowToForm(profileRow)}
-        initialStep={initialStep}
-        initialConsent={userRow?.gdpr_consent ?? false}
-      />
-    </AppShell>
+    <div className="min-h-screen bg-base font-body">
+      <main
+        style={{
+          paddingLeft: "max(1.25rem, env(safe-area-inset-left))",
+          paddingRight: "max(1.25rem, env(safe-area-inset-right))",
+        }}
+        className="mx-auto flex w-full max-w-[560px] flex-col px-5 pb-20 pt-10 sm:px-6"
+      >
+        <OnboardingWizard
+          initialForm={rowToForm(profileRow)}
+          initialStep={initialStep}
+          initialConsent={userRow?.gdpr_consent ?? false}
+        />
+      </main>
+    </div>
   );
 }

@@ -56,7 +56,7 @@ function makeProfile(overrides: Partial<AthleteProfileData> = {}): AthleteProfil
       model: "MORTON_3P",
       source: "power-curves.json",
     },
-    apr: { msp: 965, denominator: "cp", apr_ratio: 4.05 },
+    apr: { msp: 965, denominator: "cp", apr: 727, apr_ratio: 4.05 },
     phenotype: { primary: "diesel", secondary: null, confidence: "high", basis: [], thresholds_version: "v0" },
     vo2max_5m: null,
     ...overrides,

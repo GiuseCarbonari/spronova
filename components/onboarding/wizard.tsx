@@ -102,39 +102,62 @@ export function OnboardingWizard({
   const progressPct = Math.round((step / LAST_STEP) * 100);
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      {/* Progress bar */}
-      <div>
-        <div className="mb-2 flex items-center justify-between text-sm text-muted">
-          <span>{STEP_LABELS[step]}</span>
-          <span>Passo {step} di {LAST_STEP}</span>
+    <div className="flex w-full flex-col gap-8">
+      {/* Intestazione + progress bar */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 58 58" fill="none" aria-hidden>
+            <circle
+              cx="29" cy="29" r="22"
+              stroke="url(#obLmk)"
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeDasharray="104 34"
+              transform="rotate(-90 29 29)"
+            />
+            <defs>
+              <linearGradient id="obLmk" x1="0" y1="0" x2="58" y2="58">
+                <stop offset="0%" stopColor="#5b8def" />
+                <stop offset="100%" stopColor="#7fc8c0" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <span className="font-serif text-[13px] tracking-[0.05em] text-secondary">
+            Limina
+          </span>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
-          <div
-            className="h-full bg-amber transition-all"
-            style={{ width: `${progressPct}%` }}
-          />
+        <div>
+          <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-muted">
+            <span>{STEP_LABELS[step]}</span>
+            <span>Passo {step} di {LAST_STEP}</span>
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-surface-2">
+            <div
+              className="h-full rounded-full bg-brand transition-all"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
         </div>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-ready-skip">{error}</p>}
 
       {/* Step 3 — Consenso privacy */}
       {step === 3 && (
         <section className="flex flex-col gap-6">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
             Consenso privacy
           </h1>
           <p className="text-sm leading-relaxed text-secondary">
             Tratteremo i tuoi dati di allenamento e benessere per generare piani
             personalizzati. Vedi la privacy policy.
           </p>
-          <label className="flex items-start gap-3 rounded-[11px] border border-border bg-surface p-4 text-sm text-secondary">
+          <label className="flex items-start gap-3 rounded-[18px] border border-border bg-surface p-4 text-sm text-secondary">
             <input
               type="checkbox"
               checked={consent}
               onChange={(e) => setConsent(e.target.checked)}
-              className="mt-0.5 h-4 w-4 accent-amber"
+              className="mt-0.5 h-4 w-4 accent-brand"
             />
             <span>
               Acconsento al trattamento dei miei dati di allenamento e benessere
@@ -155,10 +178,10 @@ export function OnboardingWizard({
       {/* Step 4 — Messaggio educativo (§12.3) */}
       {step === 4 && (
         <section className="flex flex-col gap-6">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
             Come funziona
           </h1>
-          <div className="rounded-2xl border border-l-[3px] border-border border-l-amber bg-surface p-5 text-sm leading-relaxed text-secondary">
+          <div className="rounded-[18px] border border-l-[3px] border-border border-l-brand bg-surface p-5 text-sm leading-relaxed text-secondary">
             {EDU_MESSAGE}
           </div>
           <div className="flex justify-end">
@@ -172,7 +195,7 @@ export function OnboardingWizard({
       {/* Step 5 — Dossier (pagina A e B) */}
       {step === 5 && (
         <section className="flex flex-col gap-6">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
             Dossier atleta
           </h1>
           {dossierPage === "A" ? (
@@ -219,7 +242,7 @@ export function OnboardingWizard({
       {/* Step 6 — Attrezzatura e limiti */}
       {step === 6 && (
         <section className="flex flex-col gap-6">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
             Attrezzatura e limiti
           </h1>
           <DossierEquipment form={form} update={update} />
@@ -248,7 +271,7 @@ export function OnboardingWizard({
         <section className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
           {analysisError ? (
             <>
-              <p className="text-sm text-destructive">{analysisError}</p>
+              <p className="text-sm text-ready-skip">{analysisError}</p>
               <Button
                 onClick={() => {
                   setAnalysisError(null);
@@ -260,8 +283,8 @@ export function OnboardingWizard({
             </>
           ) : (
             <>
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-surface-2 border-t-amber" />
-              <p className="text-lg font-medium text-foreground">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-surface-2 border-t-brand" />
+              <p className="font-serif text-xl font-medium text-foreground">
                 Sto leggendo i tuoi dati…
               </p>
               <p className="text-sm text-muted">
