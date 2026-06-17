@@ -141,74 +141,90 @@ export default async function PlanPage() {
         </div>
       </div>
 
-      {/* Azioni principali — Rigenera (secondaria) | Invia (primaria teal) */}
-      <div className="flex gap-2.5">
-        <GenerateWeekButton hasPlan={plan != null} />
-        {plan && (
-          <PushButton
-            pushedAt={plan.pushed_at}
-            canWriteCalendar={canWriteCalendar}
-          />
-        )}
+      {/* 01 — Rigenera */}
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-semibold tabular-nums text-faint">01</span>
+        <div className="flex-1">
+          <GenerateWeekButton hasPlan={plan != null} />
+        </div>
       </div>
 
-      {/* Nessun piano */}
-      {!plan && (
-        <div className="rounded-[18px] border border-border bg-surface px-6 py-10 text-center">
-          <p className="font-serif text-lg text-foreground">
-            Nessun piano ancora.
-          </p>
-          <p className="mt-2 text-sm text-muted">
-            Premi «Genera settimana» per costruire la settimana dai tuoi dati.
-          </p>
-        </div>
-      )}
-
-      {plan && (
-        <>
-          {/* Stats strip: ore / TSS / intense */}
-          {weekStats && (
-            <div className="flex gap-2">
-              <StatPill label="Ore" value={weekStats.hoursLabel} />
-              <StatPill label="TSS ~" value={weekStats.tssLabel} />
-              <StatPill label="Intense" value={String(weekStats.hardCount)} />
-            </div>
-          )}
-
-          {/* Narrativa — sopra la griglia */}
-          {plan.narrative && (
-            <div className="rounded-[16px] border border-border bg-gradient-to-br from-[#222b3d]/40 to-[#0e121b]/40 p-4">
-              <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-accent2">
-                La logica della settimana
-              </div>
-              <p className="whitespace-pre-line text-[13px] leading-relaxed text-secondary">
-                {plan.narrative}
+      {/* 02 — Scheda settimanale */}
+      <div className="flex items-start gap-2">
+        <span className="mt-1 text-[10px] font-semibold tabular-nums text-faint">02</span>
+        <div className="flex-1 space-y-3">
+          {/* Nessun piano */}
+          {!plan && (
+            <div className="rounded-[18px] border border-border bg-surface px-6 py-10 text-center">
+              <p className="font-serif text-lg text-foreground">
+                Nessun piano ancora.
+              </p>
+              <p className="mt-2 text-sm text-muted">
+                Premi «Genera settimana» per costruire la settimana dai tuoi dati.
               </p>
             </div>
           )}
 
-          {/* Fase reason */}
-          {meta?.phase_reason && !plan.narrative && (
-            <div className="rounded-[16px] border border-border bg-surface px-4 py-3 text-sm text-secondary">
-              {meta.phase_reason}
-            </div>
+          {plan && (
+            <>
+              {/* Stats strip: ore / TSS / intense */}
+              {weekStats && (
+                <div className="flex gap-2">
+                  <StatPill label="Ore" value={weekStats.hoursLabel} />
+                  <StatPill label="TSS ~" value={weekStats.tssLabel} />
+                  <StatPill label="Intense" value={String(weekStats.hardCount)} />
+                </div>
+              )}
+
+              {/* Narrativa — sopra la griglia */}
+              {plan.narrative && (
+                <div className="rounded-[16px] border border-border bg-gradient-to-br from-[#222b3d]/40 to-[#0e121b]/40 p-4">
+                  <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-accent2">
+                    La logica della settimana
+                  </div>
+                  <p className="whitespace-pre-line text-[13px] leading-relaxed text-secondary">
+                    {plan.narrative}
+                  </p>
+                </div>
+              )}
+
+              {/* Fase reason */}
+              {meta?.phase_reason && !plan.narrative && (
+                <div className="rounded-[16px] border border-border bg-surface px-4 py-3 text-sm text-secondary">
+                  {meta.phase_reason}
+                </div>
+              )}
+
+              {/* Griglia 7 giorni */}
+              <RedistributeSection
+                sessions={plan.sessions}
+                weekStart={plan.week_start}
+                todayKey={todayKey}
+                todayReadiness={todayReadiness}
+                pushedAt={plan.pushed_at}
+                todayDate={todayDate}
+              />
+
+              <p className="text-[11px] text-faint">
+                Piano deterministico (Section 11 B). I target sono zone, non watt
+                fissi.
+              </p>
+            </>
           )}
+        </div>
+      </div>
 
-          {/* Griglia 7 giorni */}
-          <RedistributeSection
-            sessions={plan.sessions}
-            weekStart={plan.week_start}
-            todayKey={todayKey}
-            todayReadiness={todayReadiness}
-            pushedAt={plan.pushed_at}
-            todayDate={todayDate}
-          />
-
-          <p className="text-[11px] text-faint">
-            Piano deterministico (Section 11 B). I target sono zone, non watt
-            fissi.
-          </p>
-        </>
+      {/* 03 — Invia a Intervals */}
+      {plan && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-semibold tabular-nums text-faint">03</span>
+          <div className="flex-1">
+            <PushButton
+              pushedAt={plan.pushed_at}
+              canWriteCalendar={canWriteCalendar}
+            />
+          </div>
+        </div>
       )}
     </LiminaShell>
   );

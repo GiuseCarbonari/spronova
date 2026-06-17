@@ -66,29 +66,52 @@ function formatDuration(secs: number | null): string {
   return `~${Math.round(secs / 60)} min`;
 }
 
+function climbRowStyle(avgGradientPct: number) {
+  if (avgGradientPct < 5) {
+    return {
+      rowBg: "bg-blue-950/10",
+      dot: "text-blue-300",
+      dotColor: "bg-blue-400",
+    };
+  }
+  if (avgGradientPct < 8) {
+    return {
+      rowBg: "bg-amber-950/10",
+      dot: "text-amber-300",
+      dotColor: "bg-amber-400",
+    };
+  }
+  return {
+    rowBg: "bg-red-950/10",
+    dot: "text-red-300",
+    dotColor: "bg-red-400",
+  };
+}
+
+function FatigueChip({ level }: { level: string }) {
+  const map: Record<string, { label: string; classes: string }> = {
+    fresh: { label: "fresco", classes: "text-ready-go" },
+    moderate: { label: "moderata", classes: "text-ready-modify" },
+    fatigued: { label: "a fatica", classes: "text-ready-skip" },
+  };
+  const chip = map[level] ?? { label: level, classes: "text-muted" };
+  return <span className={`text-xs font-medium ${chip.classes}`}>{chip.label}</span>;
+}
+
 const SVG_W = 1000;
 const SVG_H = 200;
 
 function climbVisual(avgGradientPct: number) {
   if (avgGradientPct < 5) {
-    return {
-      fill: "var(--amber-dim)",
-      stroke: "var(--text-primary)",
-      opacity: 0.65,
-    };
+    // dolce — blu (z2)
+    return { fill: "#4fa3e0", rectOpacity: 0.10, strokeOpacity: 0.55, lineW: 2 };
   }
   if (avgGradientPct < 8) {
-    return {
-      fill: "var(--amber-hover)",
-      stroke: "var(--amber-hover)",
-      opacity: 0.18,
-    };
+    // impegnativa — gold (z4)
+    return { fill: "#f2b33d", rectOpacity: 0.14, strokeOpacity: 0.80, lineW: 2.5 };
   }
-  return {
-    fill: "var(--amber)",
-    stroke: "var(--amber)",
-    opacity: 0.3,
-  };
+  // ripida — rosso (z5)
+  return { fill: "#f2553d", rectOpacity: 0.18, strokeOpacity: 1, lineW: 3 };
 }
 
 function ElevationProfile({ terrain }: { terrain: TerrainSummary }) {
@@ -140,54 +163,75 @@ function ElevationProfile({ terrain }: { terrain: TerrainSummary }) {
       role="img"
       aria-label="Profilo altimetrico del percorso con le salite rilevate"
     >
+      <defs>
+        <linearGradient id="area-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#5b8def" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#5b8def" stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+
+      {/* Climb band backgrounds */}
       {terrain.climbs.map((climb, index) => {
         const start = x(climb.position_km);
         const end = x(climb.position_km + climb.distance_km);
-        const visual = climbVisual(climb.avg_gradient_pct);
+        const v = climbVisual(climb.avg_gradient_pct);
         return (
-          <g key={index}>
-            <rect
-              x={start}
-              y={0}
-              width={Math.max(1, end - start)}
-              height={SVG_H}
-              fill={visual.fill}
-              opacity={visual.opacity}
-            />
-            <line
-              x1={start}
-              y1={0}
-              x2={start}
-              y2={SVG_H}
-              stroke={visual.stroke}
-              strokeWidth={1.5}
-              opacity={0.9}
-              vectorEffect="non-scaling-stroke"
-            />
-          </g>
+          <rect
+            key={`band-${index}`}
+            x={start}
+            y={0}
+            width={Math.max(2, end - start)}
+            height={SVG_H}
+            fill={v.fill}
+            opacity={v.rectOpacity}
+          />
         );
       })}
-      <path d={areaPath} fill="var(--amber)" opacity={0.07} />
+
+      {/* Terrain area fill */}
+      <path d={areaPath} fill="url(#area-fill)" />
+
+      {/* Base elevation line */}
       <path
         d={linePath}
         fill="none"
-        stroke="var(--text-faint)"
-        strokeWidth={2}
-        opacity={0.9}
+        stroke="rgba(255,255,255,0.18)"
+        strokeWidth={1.5}
         vectorEffect="non-scaling-stroke"
       />
+
+      {/* Climb highlight lines on the curve */}
       {terrain.climbs.map((climb, index) => {
         const path = climbPaths[index];
         if (!path) return null;
-        const visual = climbVisual(climb.avg_gradient_pct);
+        const v = climbVisual(climb.avg_gradient_pct);
         return (
           <path
-            key={`climb-${index}`}
+            key={`line-${index}`}
             d={path}
             fill="none"
-            stroke={visual.stroke}
-            strokeWidth={3}
+            stroke={v.fill}
+            strokeWidth={v.lineW}
             strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={v.strokeOpacity}
+            vectorEffect="non-scaling-stroke"
+          />
+        );
+      })}
+
+      {/* Climb start tick marks */}
+      {terrain.climbs.map((climb, index) => {
+        const sx = x(climb.position_km);
+        const v = climbVisual(climb.avg_gradient_pct);
+        return (
+          <line
+            key={`tick-${index}`}
+            x1={sx} y1={0} x2={sx} y2={SVG_H}
+            stroke={v.fill}
+            strokeWidth={1}
+            strokeDasharray="4 4"
+            opacity={0.4}
             vectorEffect="non-scaling-stroke"
           />
         );
@@ -239,65 +283,56 @@ export function EventAnalysis({
       <div className="mt-6 overflow-hidden rounded-[11px] border border-border bg-base px-2 pt-3">
         <ElevationProfile terrain={terrain} />
         <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-border px-2 py-2 text-xs text-muted">
-          <ClimbLegend color="bg-amber-dim" label="dolce · sotto 5%" />
-          <ClimbLegend color="bg-amber-hover" label="impegnativa · 5–8%" />
-          <ClimbLegend color="bg-amber" label="ripida · oltre 8%" />
+          <ClimbLegend hex="#4fa3e0" label="dolce · sotto 5%" />
+          <ClimbLegend hex="#f2b33d" label="impegnativa · 5–8%" />
+          <ClimbLegend hex="#f2553d" label="ripida · oltre 8%" />
         </div>
       </div>
 
       {terrain.climbs.length > 0 && (
-        <div className="mt-7 overflow-x-auto">
-          <table className="min-w-[760px] w-full text-sm">
+        <div className="mt-7">
+          <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-[11px] uppercase tracking-[0.08em] text-muted">
-                <th className="py-3">Posizione</th>
-                <th className="py-3 text-right">Lunghezza</th>
-                <th className="py-3 text-right">D+</th>
-                <th className="py-3 text-right">Pendenza</th>
-                <th className="py-3 text-right">Categoria</th>
-                <th className="py-3 text-right">
-                  <span className="inline-flex items-center gap-1">
-                    Durata stimata <InfoTooltip term="fatica_stimata" />
+                <th className="pb-2.5">Pos.</th>
+                <th className="pb-2.5 text-right">Lung. · D+</th>
+                <th className="pb-2.5 text-right">Pend. · Cat.</th>
+                <th className="pb-2.5 text-right">
+                  <span className="inline-flex items-center justify-end gap-1">
+                    Durata <InfoTooltip term="fatica_stimata" />
                   </span>
                 </th>
-                <th className="py-3 text-right">Fatica</th>
+                <th className="pb-2.5 text-right">Fatica</th>
               </tr>
             </thead>
             <tbody>
               {terrain.climbs.map((climb, index) => {
                 const demand = demands[index];
+                const { rowBg, dot, dotColor } = climbRowStyle(climb.avg_gradient_pct);
                 return (
-                  <tr
-                    key={index}
-                    className="border-b border-border last:border-0"
-                  >
-                    <td className="py-3">{climb.position_km} km</td>
-                    <td className="py-3 text-right">{climb.distance_km} km</td>
-                    <td className="py-3 text-right">{climb.elevation_m} m</td>
-                    <td className="py-3 text-right">
-                      {climb.avg_gradient_pct}%
-                      {climb.max_gradient_pct >= 8 && (
-                        <span
-                          className="ml-1 cursor-help text-amber"
-                          title={`Pendenza massima stimata: ${climb.max_gradient_pct}%`}
-                        >
-                          ripida
-                        </span>
-                      )}
+                  <tr key={index} className={`border-b border-border last:border-0 ${rowBg}`}>
+                    <td className="py-2.5 pr-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`h-2 w-2 shrink-0 rounded-full ${dotColor}`} aria-hidden />
+                        <span className="tabular-nums text-foreground">{climb.position_km} km</span>
+                      </div>
                     </td>
-                    <td className="py-3 text-right">
-                      {climb.category ?? "—"}
+                    <td className="py-2.5 text-right tabular-nums text-foreground">
+                      {climb.distance_km} km
+                      <span className="ml-1 text-muted">· {climb.elevation_m} m</span>
                     </td>
-                    <td className="py-3 text-right">
+                    <td className="py-2.5 text-right tabular-nums">
+                      <span className={dot}>{climb.avg_gradient_pct}%</span>
+                      <span className="ml-1 text-muted">· {climb.category ?? "—"}</span>
+                    </td>
+                    <td className="py-2.5 text-right tabular-nums text-secondary">
                       {formatDuration(demand?.est_duration_s ?? null)}
                     </td>
-                    <td className="py-3 text-right">
-                      {demand ? FATIGUE_LABELS[demand.fatigue_level] : "—"}
-                      {demand?.est_kjkg != null && (
-                        <span className="text-xs text-muted">
-                          {" "}
-                          (~{demand.est_kjkg} kJ/kg)
-                        </span>
+                    <td className="py-2.5 text-right">
+                      {demand ? (
+                        <FatigueChip level={demand.fatigue_level} />
+                      ) : (
+                        <span className="text-faint">—</span>
                       )}
                     </td>
                   </tr>
@@ -342,11 +377,12 @@ export function EventAnalysis({
   );
 }
 
-function ClimbLegend({ color, label }: { color: string; label: string }) {
+function ClimbLegend({ hex, label }: { hex: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-2">
       <span
-        className={`h-2.5 w-4 rounded-[3px] border border-border ${color}`}
+        className="h-2 w-3.5 rounded-[3px]"
+        style={{ backgroundColor: hex, opacity: 0.85 }}
         aria-hidden
       />
       {label}

@@ -40,6 +40,10 @@ export interface ReadinessExtras {
   recoveryIndex?: number | null;
   tier1AlarmActive?: boolean;
   hrvProtocol?: HrvProtocol;
+  /** Ultimo valore HRV noto (carry-forward se oggi manca) + data per l'avvertenza. */
+  lastKnownHrv?: { value: number; date: string } | null;
+  /** Ultimo valore RHR noto (carry-forward se oggi manca) + data per l'avvertenza. */
+  lastKnownRhr?: { value: number; date: string } | null;
 }
 
 export type SignalStatus = "green" | "amber" | "red" | "unavailable";
@@ -92,10 +96,16 @@ export function computeReadiness(
   );
   const rhrBaseline = meanOf(wellnessHistory7d.map((d) => d.restingHR));
 
-  const hrvToday = hrvValue(wellnessToday, hrvProtocol);
-  const rhrToday = wellnessToday?.restingHR ?? null;
+  const hrvTodayRaw = hrvValue(wellnessToday, hrvProtocol);
+  const rhrTodayRaw = wellnessToday?.restingHR ?? null;
   const sleepHours =
     wellnessToday?.sleepSecs != null ? wellnessToday.sleepSecs / 3600 : null;
+
+  // Carry-forward: usa l'ultimo valore noto se oggi manca, con flag stale.
+  const hrvToday = hrvTodayRaw ?? extras.lastKnownHrv?.value ?? null;
+  const hrvStale = hrvTodayRaw == null && hrvToday != null;
+  const rhrToday = rhrTodayRaw ?? extras.lastKnownRhr?.value ?? null;
+  const rhrStale = rhrTodayRaw == null && rhrToday != null;
 
   // Variazione HRV % vs baseline (positiva = HRV in calo = peggio).
   const hrvDropPct =
@@ -106,42 +116,52 @@ export function computeReadiness(
   const rhrDelta =
     rhrToday != null && rhrBaseline != null ? rhrToday - rhrBaseline : null;
 
+  function staleSuffix(date: string | undefined): string {
+    if (!date) return " (dato precedente)";
+    const d = new Date(date);
+    return ` (ultima misura ${d.getDate()} ${d.toLocaleString("it-IT", { month: "short" })})`;
+  }
+
   // --- Classificazione segnali (tabella PRD §14.5) ------------------------
   // I segnali mancanti sono "unavailable" ed esclusi dai conteggi ambra/rossi.
 
   if (hrvDropPct == null) {
     signals.push({
       name: "hrv",
-      value: hrvToday,
+      value: null,
       status: "unavailable",
-      detail: `HRV ${hrvLabel} non disponibile (serve il dato di oggi e una baseline 7g)`,
+      detail: `HRV ${hrvLabel} — nessun dato disponibile`,
     });
   } else {
     const status: SignalStatus =
       hrvDropPct > 20 ? "red" : hrvDropPct > 10 ? "amber" : "green";
+    const trendText = `${hrvDropPct > 0 ? "↓" : "↑"}${Math.abs(hrvDropPct).toFixed(0)}% vs baseline 7g`;
+    const staleNote = hrvStale ? staleSuffix(extras.lastKnownHrv?.date) : "";
     signals.push({
       name: "hrv",
       value: hrvToday,
       status,
-      detail: `HRV ${hrvLabel} ${hrvDropPct > 0 ? "↓" : "↑"}${Math.abs(hrvDropPct).toFixed(0)}% vs baseline 7g`,
+      detail: `HRV ${hrvLabel} ${trendText}${staleNote}`,
     });
   }
 
   if (rhrDelta == null) {
     signals.push({
       name: "rhr",
-      value: rhrToday,
+      value: null,
       status: "unavailable",
-      detail: "RHR non disponibile (serve il dato di oggi e una baseline 7g)",
+      detail: "FC riposo — nessun dato disponibile",
     });
   } else {
     const status: SignalStatus =
       rhrDelta >= 5 ? "red" : rhrDelta >= 3 ? "amber" : "green";
+    const trendText = `${rhrDelta >= 0 ? "+" : ""}${rhrDelta.toFixed(0)} bpm vs baseline 7g`;
+    const staleNote = rhrStale ? staleSuffix(extras.lastKnownRhr?.date) : "";
     signals.push({
       name: "rhr",
       value: rhrToday,
       status,
-      detail: `RHR ${rhrDelta >= 0 ? "+" : ""}${rhrDelta.toFixed(0)} bpm vs baseline 7g`,
+      detail: `FC riposo ${trendText}${staleNote}`,
     });
   }
 

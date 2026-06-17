@@ -11,6 +11,7 @@ import {
 } from "@/lib/readiness";
 import {
   hrvProtocolFromPreferences,
+  latestHrvMeasurement,
   type HrvProtocol,
 } from "@/lib/hrv";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -196,8 +197,22 @@ export async function syncIntervalsData(userId: string): Promise<SyncOutcome> {
   );
   const wellnessToday = wellnessSorted.at(-1) ?? null;
   const history7d = wellnessSorted.slice(-8, -1);
+
+  // Carry-forward: cerca l'ultimo valore noto nei 30 giorni escludendo oggi.
+  const wellnessExcludingToday = wellnessSorted.slice(0, -1);
+  const lastKnownHrv = latestHrvMeasurement(wellnessExcludingToday, hrvProtocol);
+  const lastKnownRhr = (() => {
+    for (let i = wellnessExcludingToday.length - 1; i >= 0; i--) {
+      const v = wellnessExcludingToday[i].restingHR;
+      if (v != null) return { value: v, date: wellnessExcludingToday[i].date };
+    }
+    return null;
+  })();
+
   const readinessToday = computeReadiness(wellnessToday, history7d, {
     hrvProtocol,
+    lastKnownHrv,
+    lastKnownRhr,
   });
 
   // --- Profilo: sottoinsieme verificato ------------------------------------
