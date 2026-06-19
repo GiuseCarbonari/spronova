@@ -148,18 +148,19 @@ test("buildAthleteProfile: integrazione completa sui dati reali", () => {
   );
 
   assert.equal(profile.meta.generated_at, "2026-06-12T10:00:00.000Z");
-  assert.equal(profile.meta.window_days, 90);
+  // Finestra primaria 42d (build-profile.ts: 42d ha priorità, 90d è fallback).
+  assert.equal(profile.meta.window_days, 42);
   assert.equal(profile.meta.confidence, "high");
 
-  // Peso dalla curva (non da icu_weight: la curva ha priorità).
-  assert.equal(profile.weight_kg, 77.0);
-  assert.equal(profile.weight_source, "power_curve");
+  // Peso da icu_weight (fonte authoritative: ha priorità sulla curva).
+  assert.equal(profile.weight_kg, 76.5);
+  assert.equal(profile.weight_source, "icu_weight");
 
   // CP/W' letti, non ricalcolati.
   assert.equal(profile.cp_wprime?.cp_w, 238);
   assert.equal(profile.cp_wprime?.w_prime_kj, 21.351);
   assert.equal(profile.cp_wprime?.p_max_w, 965);
-  assert.ok(Math.abs((profile.cp_wprime?.cp_wkg ?? 0) - 3.09) < 0.01);
+  assert.ok(Math.abs((profile.cp_wprime?.cp_wkg ?? 0) - 238 / 76.5) < 0.01);
 
   // APR coerente.
   assert.equal(profile.apr?.apr, 727);

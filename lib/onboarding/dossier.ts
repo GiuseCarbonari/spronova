@@ -19,31 +19,48 @@ export interface GaraTarget {
  * liste e le tristate sì/no. La conversione ai tipi DB avviene in formToPatch.
  */
 export interface DossierForm {
-  // Pagina A
+  // Step 5 — Chi sei
   nome: string;
   eta: string;
   sesso: string; // "" | "M" | "F" | "other"
   altezza_cm: string;
   peso_dichiarato_kg: string;
+  peso_target_kg: string;
   sport_principali: string[];
   livello_esperienza: string; // "" | "beginner" | "intermediate" | "advanced"
-  // Pagina B
+  // Step 6 — Obiettivi
   obiettivi: string;
+  fase_corrente: string;
+  stile_allenamento: string;
   gara: GaraTargetForm;
+  // Step 7 — La tua settimana
   disponibilita_ore_sett: string;
-  giorni_preferiti: string[];
-  giorni_impossibili: string[];
   durata_max_weekday_min: string;
   durata_max_weekend_min: string;
-  // Attrezzatura e contesto
-  indoor_outdoor: string; // "" | "indoor" | "outdoor" | "both"
-  ha_rulli: boolean | null;
+  giorni_preferiti: string[];
+  giorni_impossibili: string[];
+  // Step 8 — Parametri fisiologici
+  ftp_outdoor_w: string;
+  ftp_indoor_w: string;
+  max_hr: string;
+  threshold_hr: string;
+  lt1_w: string;
+  lt1_hr: string;
+  lt2_w: string;
+  lt2_hr: string;
+  // Step 9 — Attrezzatura
+  ciclocomputer: string; // "" | "garmin" | "wahoo" | "karoo" | "coros" | "polar" | "altro"
   ha_misuratore_potenza: boolean | null;
   ha_fascia_cardio: boolean | null;
   ha_smartwatch: boolean | null;
-  // Limiti, infortuni, note
+  ha_rulli: boolean | null;
+  bici_outdoor: string;
+  piattaforma_indoor: string;
+  indoor_outdoor: string; // "" | "indoor" | "outdoor" | "both"
+  // Step 10 — Salute e note
   infortuni_attuali: string;
   dolore_attuale: string;
+  farmaci_integratori: string;
   preferenze_allenamento: string;
   limiti_principali: string;
   note_personali: string;
@@ -60,13 +77,14 @@ export interface GaraTargetForm {
 // --- Opzioni di scelta -------------------------------------------------------
 
 export const SPORT_OPTIONS = [
-  "Ciclismo strada",
-  "MTB / gravel",
+  "Ciclismo",
   "Corsa",
-  "Trail running",
-  "Triathlon",
-  "Nuoto",
 ] as const;
+
+/** True se il set di sport selezionati include almeno uno sport in bici. */
+export function hasCycling(sports: string[]): boolean {
+  return sports.includes("Ciclismo");
+}
 
 export const LIVELLO_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "beginner", label: "Principiante" },
@@ -86,6 +104,38 @@ export const INDOOR_OUTDOOR_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "both", label: "Entrambi" },
 ];
 
+export const CICLOCOMPUTER_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "garmin", label: "Garmin" },
+  { value: "wahoo", label: "Wahoo" },
+  { value: "karoo", label: "Hammerhead Karoo" },
+  { value: "coros", label: "Coros" },
+  { value: "polar", label: "Polar" },
+  { value: "altro", label: "Altro / nessuno" },
+];
+
+export const FASE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "aerobic_build", label: "Costruzione aerobica" },
+  { value: "threshold", label: "Sviluppo soglia" },
+  { value: "peak", label: "Picco / gara imminente" },
+  { value: "recovery", label: "Recupero / off-season" },
+  { value: "maintenance", label: "Mantenimento" },
+];
+
+export const STILE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "polarized", label: "Polarizzato (molto facile + molto intenso)" },
+  { value: "pyramidal", label: "Piramidale (prevalenza Z2-Z3)" },
+  { value: "threshold", label: "Soglia (sweetspot / threshold)" },
+  { value: "mixed", label: "Misto / non lo so ancora" },
+];
+
+export const PIATTAFORMA_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "zwift", label: "Zwift" },
+  { value: "trainerroad", label: "TrainerRoad" },
+  { value: "wahoo_systm", label: "Wahoo SYSTM" },
+  { value: "rouvy", label: "Rouvy" },
+  { value: "altro", label: "Altra / nessuna" },
+];
+
 /** Giorni della settimana (chiave stabile + etichetta). */
 export const GIORNI: Array<{ value: string; label: string }> = [
   { value: "mon", label: "Lun" },
@@ -101,14 +151,18 @@ export const GIORNI: Array<{ value: string; label: string }> = [
 
 /** Step coperti dal wizard (1-2 fatti prima: account + Intervals). */
 export const FIRST_STEP = 3;
-export const LAST_STEP = 7;
+export const LAST_STEP = 11;
 
 export const STEP_LABELS: Record<number, string> = {
   3: "Consenso privacy",
   4: "Come funziona",
-  5: "Dossier atleta",
-  6: "Attrezzatura e limiti",
-  7: "Prima analisi",
+  5: "Chi sei",
+  6: "Obiettivi",
+  7: "La tua settimana",
+  8: "Parametri fisiologici",
+  9: "Attrezzatura",
+  10: "Salute e note",
+  11: "Prima analisi",
 };
 
 // --- Mappatura DB ⇄ form -----------------------------------------------------
@@ -120,23 +174,38 @@ export const DOSSIER_COLUMNS = [
   "sesso",
   "altezza_cm",
   "peso_dichiarato_kg",
+  "peso_target_kg",
   "sport_principali",
   "livello_esperienza",
   "obiettivi",
+  "fase_corrente",
+  "stile_allenamento",
   "gare_target",
   "data_obiettivo",
   "disponibilita_ore_sett",
-  "giorni_preferiti",
-  "giorni_impossibili",
   "durata_max_weekday_min",
   "durata_max_weekend_min",
-  "indoor_outdoor",
-  "ha_rulli",
+  "giorni_preferiti",
+  "giorni_impossibili",
+  "ftp_outdoor_w",
+  "ftp_indoor_w",
+  "max_hr",
+  "threshold_hr",
+  "lt1_w",
+  "lt1_hr",
+  "lt2_w",
+  "lt2_hr",
+  "ciclocomputer",
   "ha_misuratore_potenza",
   "ha_fascia_cardio",
   "ha_smartwatch",
+  "ha_rulli",
+  "bici_outdoor",
+  "piattaforma_indoor",
+  "indoor_outdoor",
   "infortuni_attuali",
   "dolore_attuale",
+  "farmaci_integratori",
   "preferenze_allenamento",
   "limiti_principali",
   "note_personali",
@@ -161,22 +230,37 @@ export function emptyDossierForm(): DossierForm {
     sesso: "",
     altezza_cm: "",
     peso_dichiarato_kg: "",
+    peso_target_kg: "",
     sport_principali: [],
     livello_esperienza: "",
     obiettivi: "",
+    fase_corrente: "",
+    stile_allenamento: "",
     gara: { ...EMPTY_GARA },
     disponibilita_ore_sett: "",
-    giorni_preferiti: [],
-    giorni_impossibili: [],
     durata_max_weekday_min: "",
     durata_max_weekend_min: "",
-    indoor_outdoor: "",
-    ha_rulli: null,
+    giorni_preferiti: [],
+    giorni_impossibili: [],
+    ftp_outdoor_w: "",
+    ftp_indoor_w: "",
+    max_hr: "",
+    threshold_hr: "",
+    lt1_w: "",
+    lt1_hr: "",
+    lt2_w: "",
+    lt2_hr: "",
+    ciclocomputer: "",
     ha_misuratore_potenza: null,
     ha_fascia_cardio: null,
     ha_smartwatch: null,
+    ha_rulli: null,
+    bici_outdoor: "",
+    piattaforma_indoor: "",
+    indoor_outdoor: "",
     infortuni_attuali: "",
     dolore_attuale: "",
+    farmaci_integratori: "",
     preferenze_allenamento: "",
     limiti_principali: "",
     note_personali: "",
@@ -204,9 +288,12 @@ export function rowToForm(row: DossierRow | null | undefined): DossierForm {
   form.sesso = str(row.sesso);
   form.altezza_cm = str(row.altezza_cm);
   form.peso_dichiarato_kg = str(row.peso_dichiarato_kg);
+  form.peso_target_kg = str(row.peso_target_kg);
   form.sport_principali = strArray(row.sport_principali);
   form.livello_esperienza = str(row.livello_esperienza);
   form.obiettivi = str(row.obiettivi);
+  form.fase_corrente = str(row.fase_corrente);
+  form.stile_allenamento = str(row.stile_allenamento);
 
   const gara = (row.gare_target ?? null) as Partial<GaraTarget> | null;
   if (gara) {
@@ -219,17 +306,32 @@ export function rowToForm(row: DossierRow | null | undefined): DossierForm {
   }
 
   form.disponibilita_ore_sett = str(row.disponibilita_ore_sett);
-  form.giorni_preferiti = strArray(row.giorni_preferiti);
-  form.giorni_impossibili = strArray(row.giorni_impossibili);
   form.durata_max_weekday_min = str(row.durata_max_weekday_min);
   form.durata_max_weekend_min = str(row.durata_max_weekend_min);
-  form.indoor_outdoor = str(row.indoor_outdoor);
-  form.ha_rulli = triBool(row.ha_rulli);
+  form.giorni_preferiti = strArray(row.giorni_preferiti);
+  form.giorni_impossibili = strArray(row.giorni_impossibili);
+
+  form.ftp_outdoor_w = str(row.ftp_outdoor_w);
+  form.ftp_indoor_w = str(row.ftp_indoor_w);
+  form.max_hr = str(row.max_hr);
+  form.threshold_hr = str(row.threshold_hr);
+  form.lt1_w = str(row.lt1_w);
+  form.lt1_hr = str(row.lt1_hr);
+  form.lt2_w = str(row.lt2_w);
+  form.lt2_hr = str(row.lt2_hr);
+
+  form.ciclocomputer = str(row.ciclocomputer);
   form.ha_misuratore_potenza = triBool(row.ha_misuratore_potenza);
   form.ha_fascia_cardio = triBool(row.ha_fascia_cardio);
   form.ha_smartwatch = triBool(row.ha_smartwatch);
+  form.ha_rulli = triBool(row.ha_rulli);
+  form.bici_outdoor = str(row.bici_outdoor);
+  form.piattaforma_indoor = str(row.piattaforma_indoor);
+  form.indoor_outdoor = str(row.indoor_outdoor);
+
   form.infortuni_attuali = str(row.infortuni_attuali);
   form.dolore_attuale = str(row.dolore_attuale);
+  form.farmaci_integratori = str(row.farmaci_integratori);
   form.preferenze_allenamento = str(row.preferenze_allenamento);
   form.limiti_principali = str(row.limiti_principali);
   form.note_personali = str(row.note_personali);
@@ -284,27 +386,38 @@ export function formToPatch(form: DossierForm): Record<DossierColumn, unknown> {
     sesso: nullableText(form.sesso),
     altezza_cm: nullableInt(form.altezza_cm),
     peso_dichiarato_kg: nullableNum(form.peso_dichiarato_kg),
-    sport_principali:
-      form.sport_principali.length > 0 ? form.sport_principali : null,
+    peso_target_kg: nullableNum(form.peso_target_kg),
+    sport_principali: form.sport_principali.length > 0 ? form.sport_principali : null,
     livello_esperienza: nullableText(form.livello_esperienza),
     obiettivi: nullableText(form.obiettivi),
+    fase_corrente: nullableText(form.fase_corrente),
+    stile_allenamento: nullableText(form.stile_allenamento),
     gare_target: gara,
-    // data_obiettivo segue la data della gara target principale (§12.2).
     data_obiettivo: gara && gara.data !== "" ? gara.data : null,
     disponibilita_ore_sett: nullableNum(form.disponibilita_ore_sett),
-    giorni_preferiti:
-      form.giorni_preferiti.length > 0 ? form.giorni_preferiti : null,
-    giorni_impossibili:
-      form.giorni_impossibili.length > 0 ? form.giorni_impossibili : null,
     durata_max_weekday_min: nullableInt(form.durata_max_weekday_min),
     durata_max_weekend_min: nullableInt(form.durata_max_weekend_min),
-    indoor_outdoor: nullableText(form.indoor_outdoor),
-    ha_rulli: form.ha_rulli,
+    giorni_preferiti: form.giorni_preferiti.length > 0 ? form.giorni_preferiti : null,
+    giorni_impossibili: form.giorni_impossibili.length > 0 ? form.giorni_impossibili : null,
+    ftp_outdoor_w: nullableInt(form.ftp_outdoor_w),
+    ftp_indoor_w: nullableInt(form.ftp_indoor_w),
+    max_hr: nullableInt(form.max_hr),
+    threshold_hr: nullableInt(form.threshold_hr),
+    lt1_w: nullableInt(form.lt1_w),
+    lt1_hr: nullableInt(form.lt1_hr),
+    lt2_w: nullableInt(form.lt2_w),
+    lt2_hr: nullableInt(form.lt2_hr),
+    ciclocomputer: nullableText(form.ciclocomputer),
     ha_misuratore_potenza: form.ha_misuratore_potenza,
     ha_fascia_cardio: form.ha_fascia_cardio,
     ha_smartwatch: form.ha_smartwatch,
+    ha_rulli: form.ha_rulli,
+    bici_outdoor: nullableText(form.bici_outdoor),
+    piattaforma_indoor: nullableText(form.piattaforma_indoor),
+    indoor_outdoor: nullableText(form.indoor_outdoor),
     infortuni_attuali: nullableText(form.infortuni_attuali),
     dolore_attuale: nullableText(form.dolore_attuale),
+    farmaci_integratori: nullableText(form.farmaci_integratori),
     preferenze_allenamento: nullableText(form.preferenze_allenamento),
     limiti_principali: nullableText(form.limiti_principali),
     note_personali: nullableText(form.note_personali),

@@ -123,9 +123,7 @@ export function AthleteSummary({
               ? "Curva Intervals.icu"
               : profile.weight_source === "icu_weight"
                 ? "Profilo Intervals.icu"
-                : profile.weight_source === "STRAVA"
-                  ? "Sincronizzato da Strava"
-                  : undefined
+                : undefined
           }
         />
       </MetricStrip>

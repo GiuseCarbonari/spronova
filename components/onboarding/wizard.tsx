@@ -13,19 +13,21 @@ import {
 } from "@/lib/onboarding/dossier";
 
 import {
-  DossierEquipment,
-  DossierPageA,
-  DossierPageB,
+  StepAttrezzatura,
+  StepChiSei,
+  StepFisiologia,
+  StepObiettivi,
+  StepSalute,
+  StepSettimana,
   type DossierUpdater,
 } from "./dossier-fields";
 
 /**
- * Wizard di onboarding (PRD §12.1, step 3→7). Una schermata per step, progress
- * bar in cima, salvataggio su DB ad ogni avanzamento (chiudere a metà non
- * perde dati). Step 1 (account) e 2 (Intervals) sono già fatti prima di qui.
+ * Wizard di onboarding (PRD §12.1, step 3→11). Un argomento per step,
+ * salvataggio su DB ad ogni avanzamento così chiudere a metà non perde dati.
+ * Step 1 (account) e 2 (Intervals) sono già fatti prima di qui.
  */
 
-/** Messaggio educativo §12.3 — trascritto ESATTO dal PRD. */
 const EDU_MESSAGE =
   "Più dati hai su Intervals.icu, più il coach sarà preciso. Con soli dati base possiamo creare un piano prudente. Con potenza, frequenza cardiaca, HRV, sonno e storico possiamo adattare meglio carico, recupero e intensità.";
 
@@ -42,7 +44,6 @@ export function OnboardingWizard({
   const [step, setStep] = useState(initialStep);
   const [form, setForm] = useState<DossierForm>(initialForm ?? emptyDossierForm());
   const [consent, setConsent] = useState(initialConsent);
-  const [dossierPage, setDossierPage] = useState<"A" | "B">("A");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,7 +64,6 @@ export function OnboardingWizard({
     return true;
   }
 
-  /** Salva e passa allo step successivo. */
   async function advance(payload: Record<string, unknown>, nextStep: number) {
     setSaving(true);
     const ok = await persist({ ...payload, step: nextStep });
@@ -71,27 +71,23 @@ export function OnboardingWizard({
     if (ok) setStep(nextStep);
   }
 
-  // --- Step 7: prima analisi (auto) ------------------------------------------
+  // --- Step 11: prima analisi (auto) -----------------------------------------
   const analysisStarted = useRef(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (step !== 7 || analysisStarted.current) return;
+    if (step !== 11 || analysisStarted.current) return;
     analysisStarted.current = true;
 
     (async () => {
-      // Best-effort: sync + build profilo. Se falliscono, l'utente entra
-      // comunque in dashboard (dove ha "Aggiorna dati" / "Aggiorna profilo").
       await fetch("/api/sync/intervals", { method: "POST" }).catch(() => null);
       await fetch("/api/profile/build", { method: "POST" }).catch(() => null);
 
-      const ok = await persist({ complete: true, step: 7 });
+      const ok = await persist({ complete: true, step: 11 });
       if (!ok) {
-        setAnalysisError(
-          "Non sono riuscito a completare l'onboarding, riprova."
-        );
-        analysisStarted.current = false; // consente un retry manuale
+        setAnalysisError("Non sono riuscito a completare l'onboarding, riprova.");
+        analysisStarted.current = false;
         return;
       }
       router.push("/dashboard");
@@ -100,6 +96,14 @@ export function OnboardingWizard({
   }, [step, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const progressPct = Math.round((step / LAST_STEP) * 100);
+
+  const canAdvanceStep5 =
+    form.nome.trim() !== "" && form.sport_principali.length > 0 && form.livello_esperienza !== "";
+  const canAdvanceStep7 = form.disponibilita_ore_sett.trim() !== "";
+
+  function goBack(prevStep: number) {
+    setStep(prevStep);
+  }
 
   return (
     <div className="flex w-full flex-col gap-8">
@@ -175,7 +179,7 @@ export function OnboardingWizard({
         </section>
       )}
 
-      {/* Step 4 — Messaggio educativo (§12.3) */}
+      {/* Step 4 — Come funziona */}
       {step === 4 && (
         <section className="flex flex-col gap-6">
           <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
@@ -183,6 +187,21 @@ export function OnboardingWizard({
           </h1>
           <div className="rounded-[18px] border border-l-[3px] border-border border-l-brand bg-surface p-5 text-sm leading-relaxed text-secondary">
             {EDU_MESSAGE}
+          </div>
+          <div className="rounded-[18px] border border-border bg-surface p-5 text-sm leading-relaxed text-secondary">
+            <p className="mb-2 font-medium text-foreground">Nota su DFA a1</p>
+            <p>
+              L&apos;analisi DFA a1 — usata da Limina per stimare la tua soglia
+              aerobica in modo non invasivo — non è una funzione nativa di nessun
+              dispositivo. Su <strong>Garmin</strong> si attiva installando
+              l&apos;app gratuita <strong>AlphaHRV</strong> (Connect IQ, di Marco
+              Altini) e collegando Intervals.icu direttamente (non via Strava, che
+              rimuove i dati sviluppatore). Su <strong>Wahoo, Coros, Polar</strong>{" "}
+              e la maggior parte degli altri ciclocomputer non esiste ancora un
+              percorso supportato. Se non hai Garmin + AlphaHRV, DFA a1 non sarà
+              disponibile, ma le analisi HRV da fascia cardio e la readiness
+              giornaliera restano pienamente attive.
+            </p>
           </div>
           <div className="flex justify-end">
             <Button disabled={saving} onClick={() => void advance({}, 5)}>
@@ -192,70 +211,49 @@ export function OnboardingWizard({
         </section>
       )}
 
-      {/* Step 5 — Dossier (pagina A e B) */}
+      {/* Step 5 — Chi sei */}
       {step === 5 && (
         <section className="flex flex-col gap-6">
-          <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
-            Dossier atleta
-          </h1>
-          {dossierPage === "A" ? (
-            <>
-              <DossierPageA form={form} update={update} />
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(4)}>
-                  Indietro
-                </Button>
-                <Button
-                  disabled={form.nome.trim() === ""}
-                  onClick={() => setDossierPage("B")}
-                >
-                  Avanti
-                </Button>
-              </div>
-              {form.nome.trim() === "" && (
-                <p className="text-right text-xs text-muted">
-                  Il nome è l&apos;unico campo obbligatorio.
-                </p>
-              )}
-            </>
-          ) : (
-            <>
-              <DossierPageB form={form} update={update} />
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setDossierPage("A")}>
-                  Indietro
-                </Button>
-                <Button
-                  disabled={saving}
-                  onClick={() =>
-                    void advance({ profile: formToPatch(form) }, 6)
-                  }
-                >
-                  {saving ? "Salvo…" : "Avanti"}
-                </Button>
-              </div>
-            </>
+          <div>
+            <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
+              Chi sei?
+            </h1>
+            <p className="mt-2 text-sm text-muted">
+              I campi con * sono obbligatori.
+            </p>
+          </div>
+          <StepChiSei form={form} update={update} />
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={() => goBack(4)}>Indietro</Button>
+            <Button
+              disabled={!canAdvanceStep5 || saving}
+              onClick={() => void advance({ profile: formToPatch(form) }, 6)}
+            >
+              {saving ? "Salvo…" : "Avanti"}
+            </Button>
+          </div>
+          {!canAdvanceStep5 && (
+            <p className="text-right text-xs text-muted">
+              Compila nome, almeno uno sport e il livello di esperienza per continuare.
+            </p>
           )}
         </section>
       )}
 
-      {/* Step 6 — Attrezzatura e limiti */}
+      {/* Step 6 — Obiettivi */}
       {step === 6 && (
         <section className="flex flex-col gap-6">
-          <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
-            Attrezzatura e limiti
-          </h1>
-          <DossierEquipment form={form} update={update} />
+          <div>
+            <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
+              I tuoi obiettivi
+            </h1>
+            <p className="mt-2 text-sm text-muted">
+              Tutto opzionale — salta pure se non hai ancora le idee chiare.
+            </p>
+          </div>
+          <StepObiettivi form={form} update={update} />
           <div className="flex justify-between">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDossierPage("B");
-                setStep(5);
-              }}
-            >
-              Indietro
-            </Button>
+            <Button variant="outline" onClick={() => goBack(5)}>Indietro</Button>
             <Button
               disabled={saving}
               onClick={() => void advance({ profile: formToPatch(form) }, 7)}
@@ -266,8 +264,109 @@ export function OnboardingWizard({
         </section>
       )}
 
-      {/* Step 7 — Prima analisi */}
+      {/* Step 7 — La tua settimana */}
       {step === 7 && (
+        <section className="flex flex-col gap-6">
+          <div>
+            <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
+              La tua settimana
+            </h1>
+            <p className="mt-2 text-sm text-muted">
+              Il piano si costruisce attorno al tempo che hai realmente.
+            </p>
+          </div>
+          <StepSettimana form={form} update={update} />
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={() => goBack(6)}>Indietro</Button>
+            <Button
+              disabled={!canAdvanceStep7 || saving}
+              onClick={() => void advance({ profile: formToPatch(form) }, 8)}
+            >
+              {saving ? "Salvo…" : "Avanti"}
+            </Button>
+          </div>
+          {!canAdvanceStep7 && (
+            <p className="text-right text-xs text-muted">
+              Indica le ore disponibili a settimana per continuare.
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* Step 8 — Parametri fisiologici */}
+      {step === 8 && (
+        <section className="flex flex-col gap-6">
+          <div>
+            <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
+              Parametri fisiologici
+            </h1>
+            <p className="mt-2 text-sm text-muted">
+              Tutto opzionale — se hai Intervals.icu verranno sincronizzati automaticamente.
+            </p>
+          </div>
+          <StepFisiologia form={form} update={update} />
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={() => goBack(7)}>Indietro</Button>
+            <Button
+              disabled={saving}
+              onClick={() => void advance({ profile: formToPatch(form) }, 9)}
+            >
+              {saving ? "Salvo…" : "Avanti"}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {/* Step 9 — Attrezzatura */}
+      {step === 9 && (
+        <section className="flex flex-col gap-6">
+          <div>
+            <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
+              Attrezzatura
+            </h1>
+            <p className="mt-2 text-sm text-muted">
+              Ci aiuta a capire quali dati possiamo usare e come strutturare il piano.
+            </p>
+          </div>
+          <StepAttrezzatura form={form} update={update} />
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={() => goBack(8)}>Indietro</Button>
+            <Button
+              disabled={saving}
+              onClick={() => void advance({ profile: formToPatch(form) }, 10)}
+            >
+              {saving ? "Salvo…" : "Avanti"}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {/* Step 10 — Salute e note */}
+      {step === 10 && (
+        <section className="flex flex-col gap-6">
+          <div>
+            <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
+              Salute e note
+            </h1>
+            <p className="mt-2 text-sm text-muted">
+              Tutto opzionale. Più il coach sa, meglio può adattare il piano.
+            </p>
+          </div>
+          <StepSalute form={form} update={update} />
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={() => goBack(9)}>Indietro</Button>
+            <Button
+              disabled={saving}
+              onClick={() => void advance({ profile: formToPatch(form) }, 11)}
+            >
+              {saving ? "Salvo…" : "Inizia l'analisi"}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {/* Step 11 — Prima analisi */}
+      {step === 11 && (
         <section className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
           {analysisError ? (
             <>

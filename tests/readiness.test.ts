@@ -4,6 +4,8 @@ import { test } from "node:test";
 import {
   computeReadiness,
   computeReadinessScore,
+  computeRecoveryIndex,
+  riConsecutiveDaysBelow,
   type ReadinessInputDay,
 } from "../lib/readiness";
 
@@ -149,4 +151,83 @@ test("Readiness score: pochi dati abbassano un GO senza cambiare decisione", () 
 
   assert.equal(result.decision, "GO");
   assert.equal(computeReadinessScore(result), 70);
+});
+
+// --- Recovery Index calcolato internamente -----------------------------------
+
+test("computeRecoveryIndex: formula corretta (HRV↑ RHR↓ → RI > 1)", () => {
+  // HRV oggi 77 vs baseline 70 (+10%), RHR oggi 46 vs baseline 48 (−4%):
+  // RI = (77/70) / (46/48) ≈ 1.1 / 0.958 ≈ 1.15
+  const ri = computeRecoveryIndex(77, 46, 70, 48);
+  assert.ok(ri != null && ri > 1.0, `atteso RI > 1, ottenuto ${ri}`);
+});
+
+test("computeRecoveryIndex: HRV↓ RHR↑ → RI < 1", () => {
+  // HRV oggi 60 vs baseline 70 (↓14%), RHR oggi 52 vs baseline 48 (+8%):
+  // RI = (60/70) / (52/48) ≈ 0.857 / 1.083 ≈ 0.79
+  const ri = computeRecoveryIndex(60, 52, 70, 48);
+  assert.ok(ri != null && ri < 1.0, `atteso RI < 1, ottenuto ${ri}`);
+});
+
+test("computeRecoveryIndex: null se mancano dati", () => {
+  assert.equal(computeRecoveryIndex(null, 48, 70, 48), null);
+  assert.equal(computeRecoveryIndex(70, null, 70, 48), null);
+  assert.equal(computeRecoveryIndex(70, 48, null, 48), null);
+  assert.equal(computeRecoveryIndex(70, 48, 70, null), null);
+  assert.equal(computeRecoveryIndex(70, 48, 0, 48), null); // baseline 0
+});
+
+test("riConsecutiveDaysBelow: conta giorni consecutivi finali", () => {
+  // storico [0.75, 0.65, 0.68] + oggi 0.66 → 3 giorni sotto 0.7
+  assert.equal(riConsecutiveDaysBelow(0.66, [0.75, 0.65, 0.68]), 3);
+  // storico [0.65, 0.80, 0.65] + oggi 0.66 → solo 2 giorni finali
+  assert.equal(riConsecutiveDaysBelow(0.66, [0.65, 0.80, 0.65]), 2);
+  // oggi 0.80 → 0 giorni
+  assert.equal(riConsecutiveDaysBelow(0.80, [0.65, 0.65]), 0);
+});
+
+test("RI interno: calcolato da HRV+RHR quando extras.recoveryIndex è assente", () => {
+  // HRV oggi 60 vs baseline 70 (↓14%), RHR +4 bpm → RI < 1 ma > 0.6
+  const today = day({ hrv: 60, restingHR: 52 });
+  const base = history({ hrv: 70, restingHR: 48 });
+  const result = computeReadiness(today, base);
+  const riSignal = result.signals.find((s) => s.name === "ri");
+  assert.ok(riSignal?.value != null, "RI deve essere calcolato internamente");
+  assert.match(riSignal?.detail ?? "", /da HRV\+RHR/);
+});
+
+test("RI interno: primo giorno < 0.7 NON triggera P1 (Section 11 persistence rule)", () => {
+  // HRV −10% (amber, non red), RHR +2 bpm (green): RI ≈ 0.85/1.04 ≈ 0.82
+  // Un solo giorno con RI < 0.7 non basta per P1; usiamo valori che portino
+  // RI sotto 0.7 senza innescare altri segnali rossi.
+  // HRV oggi 63 vs baseline 70 (↓10% = amber), RHR oggi 57 vs baseline 48 (+9 = red)
+  // → 1 red solo (RHR): P2 non scatta (serve 2 red). RI = (63/70)/(57/48) ≈ 0.9/1.19 ≈ 0.76.
+  // RI ≥ 0.7 in questo caso → segnale green. Usiamo valori che abbassano RI < 0.7
+  // senza aggiungere un secondo red: HRV 63 vs 70 (amber), RHR 53 vs 48 (+5 = red) → 1 red.
+  // RI = (63/70)/(53/48) = 0.9/1.104 ≈ 0.815 → ancora > 0.7.
+  // Per avere RI < 0.7 senza 2 red: usiamo carico normale (TSB/ACWR ok),
+  // HRV amber, RHR amber: HRV 63 (amber), RHR 51 (+3 amber).
+  // RI = (63/70)/(51/48) = 0.9/1.0625 ≈ 0.847 → ancora > 0.7.
+  // Ci vuole un drop più marcato mantenendo RHR sotto red:
+  // HRV 56 (↓20% → rosso!), RHR 50 (+2 green): RI = (56/70)/(50/48) = 0.8/1.04 ≈ 0.77.
+  // Questo ci dà RI < 0.8 ma > 0.7: solo green per RI, 1 red per HRV → P2 no.
+  // Ma HRV ↓20% = esattamente al confine red (>20% = red). Usiamo ↓19%: HRV 57.
+  // RI = (57/70)/(50/48) = 0.814/1.042 ≈ 0.78 → green RI. Testiamo la persistenza rule
+  // con un RI esplicitamente < 0.7 passato via extras.recoveryIndex per isolare il caso.
+  const result = computeReadiness(day(), history(), { recoveryIndex: 0.68 }); // RI < 0.7
+  // Senza riHistory → 1 solo giorno → NON deve triggerare P1
+  const riSignal = result.signals.find((s) => s.name === "ri");
+  assert.equal(riSignal?.status, "green"); // primo giorno sotto 0.7: monitorare, non amber
+  assert.notEqual(result.priority, 1); // non P1
+});
+
+test("RI interno: 2+ giorni consecutivi < 0.7 → P1 SKIP", () => {
+  // RI 0.68 oggi + 2 giorni storici < 0.7 → P1 SKIP.
+  // Usiamo recoveryIndex esterno per isolare il test dal calcolo interno.
+  const result = computeReadiness(day(), history(), {
+    recoveryIndex: 0.68,
+    riHistory: [0.65, 0.66], // 2 giorni precedenti sotto 0.7
+  });
+  assert.equal(result.decision, "SKIP");
+  assert.equal(result.priority, 1);
 });

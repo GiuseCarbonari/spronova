@@ -105,9 +105,16 @@ export async function GET() {
   const headers = { Authorization: `Bearer ${accessToken}` };
 
   // Endpoint in corso di verifica (docs/INTERVALS_API_NOTES.md).
-  const [curvesResponse, profileResponse] = await Promise.all([
+  // La curva Run è un'aggiunta da verificare (Modulo Corsa): stessa
+  // power-curves.json con type=Run. Per i runner senza misuratore contiene
+  // la curva pace/GAP; resta da accertare se i powerModels (CS/D′) ci siano.
+  const [rideResponse, runResponse, profileResponse] = await Promise.all([
     fetch(
       "https://intervals.icu/api/v1/athlete/0/power-curves.json?type=Ride&curves=42d,90d,1y,all",
+      { headers, cache: "no-store" }
+    ),
+    fetch(
+      "https://intervals.icu/api/v1/athlete/0/power-curves.json?type=Run&curves=42d,90d,1y,all",
       { headers, cache: "no-store" }
     ),
     fetch("https://intervals.icu/api/v1/athlete/0", {
@@ -118,15 +125,19 @@ export async function GET() {
 
   // Anche in caso d'errore si riporta solo lo status, mai il body grezzo
   // (potrebbe echeggiare parametri) né il token.
-  const curves = curvesResponse.ok
-    ? describeStructure(await curvesResponse.json())
-    : { _error: `HTTP ${curvesResponse.status}` };
+  const rideCurves = rideResponse.ok
+    ? describeStructure(await rideResponse.json())
+    : { _error: `HTTP ${rideResponse.status}` };
+  const runCurves = runResponse.ok
+    ? describeStructure(await runResponse.json())
+    : { _error: `HTTP ${runResponse.status}` };
   const profile = profileResponse.ok
     ? describeStructure(await profileResponse.json())
     : { _error: `HTTP ${profileResponse.status}` };
 
   return NextResponse.json({
-    power_curves: curves,
+    power_curves_ride: rideCurves,
+    power_curves_run: runCurves,
     athlete_profile: profile,
   });
 }

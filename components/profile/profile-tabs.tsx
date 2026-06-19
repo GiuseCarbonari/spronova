@@ -41,7 +41,7 @@ interface ProfileTabsProps {
     w_prime_kj: number;
     p_max_w: number | null;
     ftp_model_w: number | null;
-    model: "MORTON_3P" | "MS_2P";
+    model: "MORTON_3P" | "MS_2P" | "FFT_CURVES" | "ECP";
     source: string;
   } | null;
   gapAnalysis: SavedGapAnalysis | null;
@@ -132,13 +132,6 @@ export function ProfileTabs({
                   indicativo.
                 </div>
               )}
-              {profile.weight_source === "STRAVA" && (
-                <div className="rounded-[14px] border border-l-[3px] border-ready-modify-border border-l-ready-modify bg-surface px-4 py-3 text-[13px] text-secondary">
-                  Il peso arriva da Strava: i valori W/kg potrebbero non essere
-                  aggiornati.
-                </div>
-              )}
-
               {/* Calibration banner — only when event is set */}
               {eventTerrain && <CalibrationBanner signatureLevel={signatureLevel} />}
 
@@ -194,7 +187,7 @@ export function ProfileTabs({
               {profile.rpp.length > 0 && (
                 <div>
                   <div className="mb-3 text-[10.5px] uppercase tracking-[0.14em] text-muted">
-                    Record Power Profile · 90gg
+                    Record Power Profile · {profile.meta.window_days}gg
                   </div>
                   <div className="overflow-hidden rounded-[16px] border border-border">
                     <table className="w-full">

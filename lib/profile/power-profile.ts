@@ -105,13 +105,18 @@ export interface CPWResult {
   wPrime: number;
   pMax: number | null;
   ftp: number | null;
-  model: "MORTON_3P" | "MS_2P";
-  source: "intervals_morton3p" | "intervals_ms2p";
+  model: "MORTON_3P" | "MS_2P" | "FFT_CURVES" | "ECP";
+  source: "intervals_morton3p" | "intervals_ms2p" | "intervals_fft" | "intervals_ecp";
 }
 
 /**
- * Legge CP/W′ dai powerModels della curva: MORTON_3P primario (ha anche
- * pMax), MS_2P come fallback. null se nessuno dei due è presente.
+ * Legge CP/W′ dai powerModels della curva con ordine di preferenza:
+ * MORTON_3P → MS_2P → FFT_CURVES → ECP.
+ *
+ * Intervals non include sempre tutti i modelli in ogni finestra temporale:
+ * la curva 90d spesso ha solo FFT_CURVES/ECP mentre la 42d ha anche
+ * MORTON_3P/MS_2P. Il fallback garantisce che la CP venga sempre letta
+ * quando Intervals l'ha calcolata con qualsiasi modello.
  */
 export function extractCPW(curve: PowerCurve): CPWResult | null {
   const models = curve.powerModels ?? [];
@@ -133,10 +138,34 @@ export function extractCPW(curve: PowerCurve): CPWResult | null {
     return {
       cp: ms2p.criticalPower,
       wPrime: ms2p.wPrime,
-      pMax: null, // il modello a 2 parametri non stima pMax
+      pMax: null,
       ftp: ms2p.ftp ?? null,
       model: "MS_2P",
       source: "intervals_ms2p",
+    };
+  }
+
+  const fft = models.find((m) => m.type === "FFT_CURVES");
+  if (fft?.criticalPower != null && fft.wPrime != null) {
+    return {
+      cp: fft.criticalPower,
+      wPrime: fft.wPrime,
+      pMax: fft.pMax ?? null,
+      ftp: fft.ftp ?? null,
+      model: "FFT_CURVES",
+      source: "intervals_fft",
+    };
+  }
+
+  const ecp = models.find((m) => m.type === "ECP");
+  if (ecp?.criticalPower != null && ecp.wPrime != null) {
+    return {
+      cp: ecp.criticalPower,
+      wPrime: ecp.wPrime,
+      pMax: ecp.pMax ?? null,
+      ftp: ecp.ftp ?? null,
+      model: "ECP",
+      source: "intervals_ecp",
     };
   }
 

@@ -37,12 +37,12 @@ export interface RPPEntry {
 export interface AthleteProfileData {
   meta: {
     generated_at: string;
-    window_days: 90;
+    window_days: 42 | 90;
     source: "intervals_power_curves";
     confidence: "high" | "medium" | "low";
   };
   weight_kg: number | null;
-  weight_source: "power_curve" | "icu_weight" | "STRAVA" | null;
+  weight_source: "power_curve" | "icu_weight" | null;
   rpp: RPPEntry[];
   cp_wprime: {
     cp_w: number;
@@ -51,7 +51,7 @@ export interface AthleteProfileData {
     w_prime_kj: number;
     p_max_w: number | null;
     ftp_model_w: number | null;
-    model: "MORTON_3P" | "MS_2P";
+    model: "MORTON_3P" | "MS_2P" | "FFT_CURVES" | "ECP";
     source: string;
   } | null;
   apr: APRResult | null;
@@ -72,24 +72,26 @@ export function buildAthleteProfile(
   athleteRaw: Record<string, unknown>,
   generatedAt: string = new Date().toISOString()
 ): AthleteProfileData {
-  const primary = findCurve(powerCurves, "90d") ?? powerCurves.list[0];
+  // Curva primaria 42d: stima più recente dello stato di forma.
+  // Fallback 90d se la 42d non è disponibile (dati insufficienti).
+  const primary =
+    findCurve(powerCurves, "42d") ??
+    findCurve(powerCurves, "90d") ??
+    powerCurves.list[0];
   if (!primary) {
     throw new Error("Risposta power-curves senza curve disponibili");
   }
   const reference1y = findCurve(powerCurves, "1y");
 
-  // --- Peso: curve.weight, fallback icu_weight (regola verificata) --------
+  // --- Peso: icu_weight dal profilo atleta (fonte authoritative), poi
+  // curve.weight come fallback. Strava non è una fonte accettabile: se
+  // icu_weight_sync punta a Strava usiamo comunque il valore numerico senza
+  // mostrare il warning — il dato numerico è lo stesso, la fonte è Intervals.
   const icuWeight =
     typeof athleteRaw.icu_weight === "number" ? athleteRaw.icu_weight : null;
-  const weightKg = primary.weight ?? icuWeight;
-  let weightSource: AthleteProfileData["weight_source"] =
-    primary.weight != null ? "power_curve" : icuWeight != null ? "icu_weight" : null;
-  // Passthrough best-effort: se il profilo dichiara il peso sincronizzato
-  // da Strava lo si segnala in UI (campo opzionale, innocuo se assente).
-  const weightSync = athleteRaw.icu_weight_sync ?? athleteRaw.weight_sync;
-  if (typeof weightSync === "string" && weightSync.toUpperCase().includes("STRAVA")) {
-    weightSource = "STRAVA";
-  }
+  const weightKg = icuWeight ?? primary.weight ?? null;
+  const weightSource: AthleteProfileData["weight_source"] =
+    icuWeight != null ? "icu_weight" : primary.weight != null ? "power_curve" : null;
 
   // --- Estrazioni pure (tutte lette, mai ricalcolate) ----------------------
   const mmp90: MMPPoint[] = extractMMP(primary);
@@ -124,7 +126,7 @@ export function buildAthleteProfile(
   return {
     meta: {
       generated_at: generatedAt,
-      window_days: 90,
+      window_days: (primary.days ?? 42) <= 42 ? 42 : 90,
       source: "intervals_power_curves",
       confidence,
     },

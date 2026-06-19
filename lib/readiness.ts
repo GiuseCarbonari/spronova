@@ -37,6 +37,10 @@ export interface ReadinessInputDay {
 
 /** Input opzionali Section 11 non disponibili via API Intervals (Milestone 2). */
 export interface ReadinessExtras {
+  /**
+   * Recovery Index pre-calcolato (dal mirror Section 11). Se assente,
+   * computeReadiness lo deriva internamente da HRV e RHR vs baseline 7g.
+   */
   recoveryIndex?: number | null;
   tier1AlarmActive?: boolean;
   hrvProtocol?: HrvProtocol;
@@ -44,6 +48,11 @@ export interface ReadinessExtras {
   lastKnownHrv?: { value: number; date: string } | null;
   /** Ultimo valore RHR noto (carry-forward se oggi manca) + data per l'avvertenza. */
   lastKnownRhr?: { value: number; date: string } | null;
+  /**
+   * Storico RI degli ultimi giorni (cronologico, ultimo = ieri) per rilevare
+   * la persistenza RI < 0.7 su 2+ giorni consecutivi (Section 11 amber rule).
+   */
+  riHistory?: Array<number | null>;
 }
 
 export type SignalStatus = "green" | "amber" | "red" | "unavailable";
@@ -133,6 +142,56 @@ export function computeReadinessScore(readiness: ReadinessResult): number {
   }
 
   return clampScore(rawScore, min, max);
+}
+
+/**
+ * Recovery Index = (HRV_today / HRV_baseline) ÷ (RHR_today / RHR_baseline).
+ *
+ * Formula Section 11: rapporto composito che sale quando HRV è alta e RHR è
+ * bassa (recupero ottimale). null se mancano HRV o RHR (divisione per zero
+ * inclusa). Arrotondato a 2 decimali per auditabilità.
+ *
+ * Thresholds Section 11:
+ *   RI ≥ 0.8 → green
+ *   RI 0.7–0.79 → amber (solo se persistente 2+ giorni)
+ *   RI < 0.7 per 2+ giorni → amber
+ *   RI < 0.6 qualsiasi giorno → red (P0 safety stop)
+ */
+export function computeRecoveryIndex(
+  hrvToday: number | null,
+  rhrToday: number | null,
+  hrvBaseline: number | null,
+  rhrBaseline: number | null
+): number | null {
+  if (
+    hrvToday == null ||
+    rhrToday == null ||
+    hrvBaseline == null ||
+    rhrBaseline == null ||
+    hrvBaseline === 0 ||
+    rhrToday === 0
+  )
+    return null;
+  const ri = (hrvToday / hrvBaseline) / (rhrToday / rhrBaseline);
+  return Math.round(ri * 100) / 100;
+}
+
+/**
+ * Conta quanti giorni consecutivi finali (incluso oggi) hanno RI < 0.7.
+ * Usato per la amber-persistence rule di Section 11.
+ */
+export function riConsecutiveDaysBelow(
+  riToday: number | null,
+  riHistory: Array<number | null>
+): number {
+  const series = [...riHistory, riToday];
+  let count = 0;
+  for (let i = series.length - 1; i >= 0; i--) {
+    const v = series[i];
+    if (v != null && v < 0.7) count++;
+    else break;
+  }
+  return count;
 }
 
 /** Media aritmetica dei valori non-null; null se non ce ne sono. */
@@ -293,23 +352,40 @@ export function computeReadiness(
     });
   }
 
-  const ri = extras.recoveryIndex ?? null;
-  signals.push({
-    name: "ri",
-    value: ri,
-    status:
-      ri == null
-        ? "unavailable"
-        : ri < 0.6
-          ? "red"
+  // RI: usa il valore esterno se fornito, altrimenti lo calcola internamente
+  // da HRV e RHR vs baseline 7g (Section 11 formula).
+  const riExternal = extras.recoveryIndex ?? null;
+  const riComputed =
+    riExternal != null
+      ? null
+      : computeRecoveryIndex(hrvToday, rhrToday, hrvBaseline, rhrBaseline);
+  const ri = riExternal ?? riComputed;
+  const riSource = riExternal != null ? "esterno" : riComputed != null ? "calcolato" : null;
+
+  // Amber rule Section 11: RI < 0.7 è amber SOLO se persiste 2+ giorni.
+  const riDaysBelow = ri != null
+    ? riConsecutiveDaysBelow(ri, extras.riHistory ?? [])
+    : 0;
+
+  const riStatus: SignalStatus =
+    ri == null
+      ? "unavailable"
+      : ri < 0.6
+        ? "red"
+        : ri < 0.7 && riDaysBelow >= 2
+          ? "amber"
           : ri < 0.7
-            ? "amber"
-            : "green",
-    detail:
-      ri == null
-        ? "Recovery Index non disponibile (arriverà dal mirror Section 11)"
-        : `RI ${ri.toFixed(2)}`,
-  });
+            ? "green" // sotto 0.7 ma primo giorno: non ancora amber
+            : "green";
+
+  const riDetail =
+    ri == null
+      ? "Recovery Index non disponibile"
+      : `RI ${ri.toFixed(2)}${riSource === "calcolato" ? " (da HRV+RHR)" : ""}${
+          ri < 0.7 && riDaysBelow < 2 ? " — 1° giorno, monitorare" : ""
+        }${riDaysBelow >= 2 ? ` — ${riDaysBelow}gg consecutivi < 0.7` : ""}`;
+
+  signals.push({ name: "ri", value: ri, status: riStatus, detail: riDetail });
 
   const redCount = signals.filter((s) => s.status === "red").length;
   const amberCount = signals.filter((s) => s.status === "amber").length;
@@ -342,6 +418,13 @@ export function computeReadiness(
   if (extras.tier1AlarmActive) {
     reasons.push("P0 safety stop: alarm tier-1 attivo");
     return finish("SKIP", 0);
+  }
+  // RI < 0.7 per 2+ giorni consecutivi = tier-1 alert → P1 SKIP (Section 11).
+  if (ri != null && ri < 0.7 && riDaysBelow >= 2) {
+    reasons.push(
+      `P1 sovraccarico acuto: RI ${ri.toFixed(2)} < 0.7 per ${riDaysBelow} giorni consecutivi`
+    );
+    return finish("SKIP", 1);
   }
 
   // P1 — Sovraccarico acuto → Skip
