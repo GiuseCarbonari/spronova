@@ -64,7 +64,7 @@ const STATUS_DOT: Record<string, string> = {
   green: "bg-ready-go",
   amber: "bg-ready-modify",
   red: "bg-ready-skip",
-  unavailable: "bg-white/[0.16]",
+  unavailable: "bg-muted/40",
 };
 
 const CTA: Record<ReadinessResult["decision"], string> = {
@@ -132,7 +132,7 @@ export function ReadinessRing({ readiness }: { readiness: ReadinessResult }) {
               <circle
                 cx="100" cy="100" r={radius}
                 fill="none"
-                stroke="rgba(255,255,255,0.06)"
+                stroke="color-mix(in srgb, var(--foreground) 9%, transparent)"
                 strokeWidth="14"
               />
               {/* Active arc */}
@@ -212,7 +212,7 @@ export function ReadinessRing({ readiness }: { readiness: ReadinessResult }) {
       </div>
 
       {/* Signal bar: tutti i segnali in miniatura */}
-      <div className="mt-4 flex gap-2 border-t border-white/[0.06] pt-3">
+      <div className="mt-4 flex gap-2 border-t border-border pt-3">
         {readiness.signals.map((s) => (
           <div key={s.name} className="flex flex-1 flex-col items-center gap-1.5">
             <span

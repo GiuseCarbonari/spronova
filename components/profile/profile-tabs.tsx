@@ -416,7 +416,7 @@ function MiniCard({
   term?: string;
 }) {
   return (
-    <div className="rounded-[16px] border border-border bg-white/[0.025] px-4 py-4">
+    <div className="rounded-[16px] border border-border bg-surface px-4 py-4">
       <div className="flex items-center gap-1.5">
         <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted">
           {label}

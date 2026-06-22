@@ -307,7 +307,7 @@ function StepMarker({
 
 function StatPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex min-w-0 flex-col items-center rounded-[13px] border border-border bg-white/[0.025] px-1.5 py-3">
+    <div className="flex min-w-0 flex-col items-center rounded-[13px] border border-border bg-surface px-1.5 py-3">
       <span className="max-w-full break-words text-center font-serif text-[18px] leading-none text-foreground sm:text-[21px]">
         {value}
       </span>

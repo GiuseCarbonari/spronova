@@ -36,13 +36,13 @@ export function MetricCard({
       ? "border-ready-go-border bg-ready-go/[0.12] text-ready-go"
       : deltaTone === "negative"
         ? "border-ready-skip-border bg-ready-skip/[0.12] text-ready-skip"
-        : "border-white/[0.12] bg-white/[0.045] text-secondary";
+        : "border-border bg-surface-2 text-secondary";
 
   return (
     <div
       className={`relative rounded-metric border p-[14px] transition-colors ${
         open ? "border-accent2/40" : "border-border"
-      } bg-gradient-to-br from-[#222b3d]/50 to-[#0e121b]/40`}
+      } bg-surface`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -56,7 +56,7 @@ export function MetricCard({
           aria-label={`Cos'è ${label}`}
           aria-expanded={open}
           onClick={onToggle}
-          className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full border border-white/20 font-serif text-[11px] text-secondary transition-colors hover:border-accent2/60 hover:text-accent2-hover"
+          className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full border border-border font-serif text-[11px] text-secondary transition-colors hover:border-accent2/60 hover:text-accent2-hover"
         >
           i
         </button>
@@ -77,7 +77,7 @@ export function MetricCard({
       </div>
 
       {open && (
-        <div className="mt-2.5 rounded-xl border border-white/[0.12] bg-[#06080d]/95 p-[11px]">
+        <div className="mt-2.5 rounded-xl border border-border bg-base p-[11px]">
           <p className="text-[11.5px] leading-relaxed text-secondary">{tooltip}</p>
           {footer}
         </div>

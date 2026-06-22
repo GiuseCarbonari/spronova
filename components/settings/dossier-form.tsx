@@ -11,6 +11,7 @@ import {
   StepSettimana,
   type DossierUpdater,
 } from "@/components/onboarding/dossier-fields";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
   CICLOCOMPUTER_OPTIONS,
@@ -135,13 +136,17 @@ export function SettingsDossierForm({ initialForm }: { initialForm: DossierForm 
 
   return (
     <>
-      <div className="flex items-start justify-between pt-2">
+      <div className="flex items-start justify-between gap-4 pt-2">
         <div>
           <div className="text-[11px] uppercase tracking-[0.16em] text-muted">Impostazioni</div>
           <h1 className="mt-1.5 font-serif text-[30px] font-medium leading-none text-foreground">
             Il tuo profilo
           </h1>
           <p className="mt-2 text-sm text-secondary">Aggiorna il tuo dossier in qualsiasi momento.</p>
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+          <span className="hidden text-[13px] text-muted sm:inline">Tema</span>
+          <ThemeToggle />
         </div>
       </div>
 

@@ -42,7 +42,7 @@ const TONE_CONFIG: Record<Tone, {
     kindLabel: "Duro",
     chipBg: "bg-ready-skip/[0.12]",
     chipText: "text-[#eda7a0]",
-    cardBg: "bg-gradient-to-br from-[#222b3d]/50 to-[#0e121b]/40",
+    cardBg: "bg-surface",
   },
   medium: {
     accentBorder: "border-l-brand",
@@ -50,7 +50,7 @@ const TONE_CONFIG: Record<Tone, {
     kindLabel: "Medio",
     chipBg: "bg-brand-dim",
     chipText: "text-brand-hover",
-    cardBg: "bg-gradient-to-br from-[#222b3d]/50 to-[#0e121b]/40",
+    cardBg: "bg-surface",
   },
   easy: {
     accentBorder: "border-l-accent2",
@@ -58,13 +58,13 @@ const TONE_CONFIG: Record<Tone, {
     kindLabel: "Facile",
     chipBg: "bg-accent2-dim",
     chipText: "text-accent2-hover",
-    cardBg: "bg-gradient-to-br from-[#222b3d]/50 to-[#0e121b]/40",
+    cardBg: "bg-surface",
   },
   rest: {
     accentBorder: "border-l-border",
     icon: "○",
     kindLabel: "Riposo",
-    chipBg: "bg-white/[0.05]",
+    chipBg: "bg-surface-2",
     chipText: "text-muted",
     cardBg: "bg-transparent",
   },
@@ -176,13 +176,13 @@ export function WeekGrid({
               key={day}
               className={`overflow-hidden rounded-[15px] border border-l-[3px] ${cfg.accentBorder} ${
                 isCompleted
-                  ? "bg-[#0b1018]/70 opacity-[0.72]"
+                  ? "bg-surface-2 opacity-[0.72]"
                   : cfg.cardBg
               } ${
                 isToday && !isCompleted
                   ? "border-brand/55 shadow-[0_0_0_1px_rgba(91,141,239,0.2),0_12px_30px_rgba(91,141,239,0.14)]"
                   : isOpen
-                    ? "border-white/[0.16]"
+                    ? "border-brand/30"
                     : tone === "rest"
                       ? "border-dashed border-border"
                       : "border-border"
@@ -262,7 +262,7 @@ export function WeekGrid({
 
               {/* Expanded detail */}
               {isOpen && !session.rest && (
-                <div className="border-t border-white/[0.06] px-[15px] pb-[15px] pt-[13px]">
+                <div className="border-t border-border px-[15px] pb-[15px] pt-[13px]">
                   <div className="space-y-3">
                     {isCompleted && (
                       <DetailRow

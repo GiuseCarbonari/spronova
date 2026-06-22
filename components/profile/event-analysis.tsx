@@ -195,7 +195,7 @@ function ElevationProfile({ terrain }: { terrain: TerrainSummary }) {
       <path
         d={linePath}
         fill="none"
-        stroke="rgba(255,255,255,0.18)"
+        stroke="color-mix(in srgb, var(--foreground) 22%, transparent)"
         strokeWidth={1.5}
         vectorEffect="non-scaling-stroke"
       />

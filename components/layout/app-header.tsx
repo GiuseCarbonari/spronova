@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 
+import { ThemeToggle } from "@/components/layout/theme-toggle";
+
 export function AppHeader() {
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between px-5 py-3 bg-base/80 backdrop-blur-xl border-b border-border">
@@ -31,17 +33,21 @@ export function AppHeader() {
         </span>
       </Link>
 
-      <form action="/api/auth/logout" method="post">
-        <button
-          type="submit"
-          title="Esci da Spronova"
-          className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
-        >
-          <LogOut className="h-3.5 w-3.5" aria-hidden />
-          <span className="hidden sm:inline">Esci</span>
-          <span className="sr-only sm:hidden">Esci da Spronova</span>
-        </button>
-      </form>
+      <div className="flex items-center gap-1">
+        <ThemeToggle />
+
+        <form action="/api/auth/logout" method="post">
+          <button
+            type="submit"
+            title="Esci da Spronova"
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
+          >
+            <LogOut className="h-3.5 w-3.5" aria-hidden />
+            <span className="hidden sm:inline">Esci</span>
+            <span className="sr-only sm:hidden">Esci da Spronova</span>
+          </button>
+        </form>
+      </div>
     </header>
   );
 }

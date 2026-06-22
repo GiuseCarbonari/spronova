@@ -150,7 +150,7 @@ function DeltaBadge({
   const positive = delta == null || Math.abs(delta) < 0.5 ? false : invertTrend ? !up : up;
 
   return (
-    <div className="rounded-2xl border border-border bg-white/[0.045] p-4 backdrop-blur-xl">
+    <div className="rounded-2xl border border-border bg-surface-2 p-4 backdrop-blur-xl">
       <div className="flex items-center gap-2 text-xs font-semibold text-muted">
         <span className={cn("h-2 w-2 rounded-full", colorClass)} />
         {label}
@@ -222,7 +222,7 @@ export function ReadinessHero({
           </div>
           <p
             className={cn(
-              "max-w-[260px] rounded-2xl border bg-white/[0.035] px-3 py-2 text-xs leading-relaxed text-secondary",
+              "max-w-[260px] rounded-2xl border bg-surface px-3 py-2 text-xs leading-relaxed text-secondary",
               styles.border
             )}
           >
@@ -232,7 +232,7 @@ export function ReadinessHero({
         </div>
 
         {conditionMetrics && (
-          <div className="mt-5 flex gap-4 rounded-[22px] border border-border bg-white/[0.035] p-4 backdrop-blur-xl">
+          <div className="mt-5 flex gap-4 rounded-[22px] border border-border bg-surface p-4 backdrop-blur-xl">
             <MetricChip
               label="Forma"
               value={conditionMetrics.ctl}
@@ -259,12 +259,12 @@ export function ReadinessHero({
         <div className="mt-6 grid gap-7 lg:grid-cols-[330px_minmax(0,1fr)] lg:items-center">
           <div
             className={cn(
-              "rounded-[30px] border bg-[#111923]/80 p-5 backdrop-blur-xl",
+              "rounded-[30px] border bg-surface/80 p-5 backdrop-blur-xl",
               styles.border,
               styles.glow
             )}
           >
-            <div className="flex flex-col items-center rounded-[26px] border border-white/10 bg-white/[0.035] px-5 py-7 text-center">
+            <div className="flex flex-col items-center rounded-[26px] border border-border bg-surface-2 px-5 py-7 text-center">
               <span className="font-data text-[9px] uppercase tracking-[0.24em] text-muted">
                 Readiness
               </span>
@@ -308,7 +308,7 @@ export function ReadinessHero({
               {copy.phrase}
             </h3>
 
-            <div className="mt-4 rounded-[22px] border border-border bg-white/[0.035] p-4">
+            <div className="mt-4 rounded-[22px] border border-border bg-surface p-4">
               <p className="font-data text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
                 Perché
               </p>

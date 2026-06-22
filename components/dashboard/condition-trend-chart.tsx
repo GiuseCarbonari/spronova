@@ -15,8 +15,8 @@ const CHART_COLORS = {
   ctl: "#6EA2FF",
   atl: "#F58A7C",
   tsb: "#F2C14E",
-  grid: "rgba(234,238,246,.12)",
-  axis: "rgba(234,238,246,.18)",
+  grid: "color-mix(in srgb, var(--foreground) 10%, transparent)",
+  axis: "color-mix(in srgb, var(--foreground) 16%, transparent)",
 };
 
 function formatWeekLabel(date: string) {
@@ -97,7 +97,7 @@ export function ConditionTrendChart({ days }: { days: WellnessDay[] }) {
   const selectedTsbY = tsbPoints[selected]?.y ?? tsbPoints.at(-1)!.y;
 
   return (
-    <section className="aurora-glass rounded-[28px] border-white/[0.12] bg-[#101722] p-5">
+    <section className="aurora-glass rounded-[28px] border-border bg-surface p-5">
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
           <p className="font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-accent2">
@@ -114,7 +114,7 @@ export function ConditionTrendChart({ days }: { days: WellnessDay[] }) {
 
       <div className="relative">
         <div
-          className="absolute top-2 z-10 -translate-x-1/2 rounded-full border border-white/[0.14] bg-[#0b111a]/90 px-2.5 py-1 shadow-lg backdrop-blur-xl"
+          className="absolute top-2 z-10 -translate-x-1/2 rounded-full border border-border bg-surface/95 px-2.5 py-1 shadow-lg backdrop-blur-xl"
           style={{ left: `${(selectedX / 340) * 100}%` }}
         >
           <div className="font-display flex items-center gap-2 text-[13px] font-semibold leading-none tabular-nums">
@@ -181,12 +181,12 @@ export function ConditionTrendChart({ days }: { days: WellnessDay[] }) {
             y1="18"
             x2={selectedX}
             y2="130"
-            stroke="rgba(234,238,246,.36)"
+            stroke="color-mix(in srgb, var(--foreground) 30%, transparent)"
             strokeDasharray="3 3"
           />
-          <circle cx={selectedX} cy={selectedCtlY} r="4.2" fill={CHART_COLORS.ctl} stroke="#0B0E13" strokeWidth="2" />
-          <circle cx={selectedX} cy={selectedAtlY} r="4.2" fill={CHART_COLORS.atl} stroke="#0B0E13" strokeWidth="2" />
-          <circle cx={selectedX} cy={selectedTsbY} r="4.2" fill={CHART_COLORS.tsb} stroke="#0B0E13" strokeWidth="2" />
+          <circle cx={selectedX} cy={selectedCtlY} r="4.2" fill={CHART_COLORS.ctl} stroke="var(--bg-surface)" strokeWidth="2" />
+          <circle cx={selectedX} cy={selectedAtlY} r="4.2" fill={CHART_COLORS.atl} stroke="var(--bg-surface)" strokeWidth="2" />
+          <circle cx={selectedX} cy={selectedTsbY} r="4.2" fill={CHART_COLORS.tsb} stroke="var(--bg-surface)" strokeWidth="2" />
           {points.map((point, index) => (
             <rect
               key={point.label}

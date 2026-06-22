@@ -50,7 +50,7 @@ export function MetricStat({
           aria-label={`Cos'è ${label}`}
           aria-expanded={helpOpen}
           onClick={() => setHelpOpen((open) => !open)}
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border bg-white/[0.03] text-[10px] font-semibold leading-none text-muted transition-colors hover:border-amber hover:text-amber focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border bg-surface-2 text-[10px] font-semibold leading-none text-muted transition-colors hover:border-amber hover:text-amber focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
         >
           ?
         </button>

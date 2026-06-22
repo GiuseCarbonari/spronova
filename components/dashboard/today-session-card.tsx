@@ -17,7 +17,7 @@ const KIND_COPY: Record<SessionKind, { label: string; chipBg: string; chipText: 
   },
   rest: {
     label: "Riposo",
-    chipBg: "bg-white/[0.05]",
+    chipBg: "bg-surface-2",
     chipText: "text-muted",
     border: "border-border",
   },

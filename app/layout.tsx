@@ -39,7 +39,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="it" className={`${syne.variable} ${newsreader.variable}`}>
+    <html
+      lang="it"
+      suppressHydrationWarning
+      className={`${syne.variable} ${newsreader.variable}`}
+    >
+      <head>
+        {/*
+          Applica il tema salvato prima del primo paint per evitare il flash.
+          Default: scuro (tema storico dell'app) se l'utente non ha mai scelto.
+          La chiave deve restare allineata con components/layout/theme-toggle.tsx.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('spronova-theme');if(t!=='light'){document.documentElement.classList.add('dark');}}catch(e){document.documentElement.classList.add('dark');}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-screen antialiased">{children}</body>
     </html>
   );
