@@ -184,7 +184,7 @@
   }
   .aurora-glass {
     @apply border border-border bg-surface backdrop-blur-xl;
-    box-shadow: 0 18px 60px -36px rgba(0, 0, 0, 0.85);
+    box-shadow: 0 18px 60px -36px color-mix(in srgb, var(--foreground) 22%, transparent);
   }
   .font-data {
     font-family: var(--font-newsreader), Georgia, serif;
@@ -226,13 +226,83 @@
 .skel {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.04) 25%,
-    rgba(255, 255, 255, 0.1) 37%,
-    rgba(255, 255, 255, 0.04) 63%
+    color-mix(in srgb, var(--foreground) 4%, transparent) 25%,
+    color-mix(in srgb, var(--foreground) 10%, transparent) 37%,
+    color-mix(in srgb, var(--foreground) 4%, transparent) 63%
   );
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
   border-radius: 10px;
+}
+
+/* ── Driver.js tour: popover personalizzato ── */
+.curveload-tour-popover {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--bg-border) !important;
+  border-radius: 18px !important;
+  padding: 20px !important;
+  box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.55) !important;
+  font-family: var(--font-syne), Inter, ui-sans-serif, system-ui, sans-serif !important;
+  max-width: 300px !important;
+}
+
+.curveload-tour-popover .driver-popover-title {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  margin-bottom: 6px !important;
+}
+
+.curveload-tour-popover .driver-popover-description {
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  color: var(--text-secondary) !important;
+}
+
+.curveload-tour-popover .driver-popover-progress-text {
+  font-size: 11px !important;
+  color: var(--text-faint) !important;
+}
+
+.curveload-tour-popover .driver-popover-prev-btn,
+.curveload-tour-popover .driver-popover-next-btn {
+  background: var(--brand) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 10px !important;
+  padding: 7px 14px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: opacity 0.15s !important;
+}
+
+.curveload-tour-popover .driver-popover-prev-btn {
+  background: var(--bg-surface-2) !important;
+  color: var(--text-secondary) !important;
+}
+
+.curveload-tour-popover .driver-popover-prev-btn:hover,
+.curveload-tour-popover .driver-popover-next-btn:hover {
+  opacity: 0.85 !important;
+}
+
+.curveload-tour-popover .driver-popover-close-btn {
+  color: var(--text-faint) !important;
+  font-size: 18px !important;
+}
+
+.curveload-tour-popover .driver-popover-arrow-side-top::after {
+  border-bottom-color: var(--bg-surface) !important;
+}
+.curveload-tour-popover .driver-popover-arrow-side-bottom::after {
+  border-top-color: var(--bg-surface) !important;
+}
+.curveload-tour-popover .driver-popover-arrow-side-left::after {
+  border-right-color: var(--bg-surface) !important;
+}
+.curveload-tour-popover .driver-popover-arrow-side-right::after {
+  border-left-color: var(--bg-surface) !important;
 }
 
 .no-scrollbar::-webkit-scrollbar {

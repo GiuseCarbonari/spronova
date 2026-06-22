@@ -129,12 +129,12 @@ export function PushButton({
       <div className="flex flex-1 flex-col gap-1">
         <a
           href="/api/auth/intervals/login"
-          className="flex w-full items-center justify-center gap-3 rounded-[14px] border border-[#e40046]/45 bg-[#e40046]/[0.10] px-3 py-2.5 text-left text-[12px] font-semibold text-[#ff8fb1]"
+          className="flex w-full items-center justify-center gap-3 rounded-[14px] border border-[#e40046]/45 bg-[#e40046]/[0.10] px-3 py-2.5 text-left text-[12px] font-semibold text-[#b0003a] dark:text-[#ff8fb1]"
         >
           <IntervalsMark className="h-7 w-7" />
           <span className="flex min-w-0 flex-col">
             <span>Carica su Intervals</span>
-            <span className="text-[9.5px] font-normal text-[#ffb8cc]">riconnetti prima</span>
+            <span className="text-[9.5px] font-normal text-[#c0004a] dark:text-[#ffb8cc]">riconnetti prima</span>
           </span>
         </a>
       </div>
@@ -143,17 +143,17 @@ export function PushButton({
 
   return (
     <>
-      <div className="flex flex-1 flex-col gap-1">
+      <div id="tour-push-btn" className="flex flex-1 flex-col gap-1">
         <button
           type="button"
           onClick={() => void openPreview()}
           disabled={loadingPreview || committing}
-          className="flex w-full items-center justify-center gap-3 rounded-[14px] border border-[#e40046]/55 bg-gradient-to-r from-[#e40046]/[0.24] to-[#7fc8c0]/[0.08] px-3 py-2.5 text-left text-[13.5px] font-bold text-[#ffd7e2] shadow-[0_14px_36px_-24px_rgba(228,0,70,0.72)] transition-opacity disabled:opacity-70"
+          className="flex w-full items-center justify-center gap-3 rounded-[14px] border border-[#e40046]/55 bg-gradient-to-r from-[#e40046]/[0.24] to-[#7fc8c0]/[0.08] px-3 py-2.5 text-left text-[13.5px] font-bold text-[#8b0028] shadow-[0_14px_36px_-24px_rgba(228,0,70,0.72)] transition-opacity disabled:opacity-70 dark:text-[#ffd7e2]"
         >
           <IntervalsMark />
           <span className="flex min-w-0 flex-col">
             <span>{loadingPreview ? "Preparo anteprima..." : "Carica settimana su Intervals"}</span>
-            <span className="text-[9.5px] font-normal text-[#ffb8cc]">ultimo passo: richiede conferma</span>
+            <span className="text-[9.5px] font-normal text-[#a0003a] dark:text-[#ffb8cc]">ultimo passo: richiede conferma</span>
           </span>
         </button>
         {success && (

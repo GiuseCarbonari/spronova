@@ -6,7 +6,7 @@ const KIND_COPY: Record<SessionKind, { label: string; chipBg: string; chipText: 
   hard: {
     label: "Duro",
     chipBg: "bg-ready-skip/[0.16]",
-    chipText: "text-[#eda7a0]",
+    chipText: "text-ready-skip",
     border: "border-ready-skip-border",
   },
   easy: {
@@ -50,7 +50,7 @@ export function TodaySessionCard({
   const copy = KIND_COPY[kind];
 
   return (
-    <div className={`rounded-[18px] border bg-gradient-to-br from-brand/[0.16] to-[#121828]/45 p-[18px] ${copy.border}`}>
+    <div id="tour-session" className={`rounded-[18px] border bg-gradient-to-br from-brand/[0.16] to-surface-2/60 p-[18px] ${copy.border}`}>
       <div className="flex items-center justify-between">
         <span className="text-[10px] uppercase tracking-[0.14em] text-brand-hover">
           Seduta di oggi

@@ -150,18 +150,20 @@ export function RedistributeSection({
 
   return (
     <>
-      <WeekGrid
-        sessions={sessions}
-        todayKey={todayKey}
-        todayReadiness={todayReadiness}
-        pushedAt={pushedAt}
-        lockedBefore={todayDate}
-        completionByDate={completionByDate}
-        onBlockDay={(date, day) => {
-          if (loadingDate) return; // debounce
-          void handleBlockDay(date, day);
-        }}
-      />
+      <div id="tour-week-grid">
+        <WeekGrid
+          sessions={sessions}
+          todayKey={todayKey}
+          todayReadiness={todayReadiness}
+          pushedAt={pushedAt}
+          lockedBefore={todayDate}
+          completionByDate={completionByDate}
+          onBlockDay={(date, day) => {
+            if (loadingDate) return; // debounce
+            void handleBlockDay(date, day);
+          }}
+        />
+      </div>
 
       {loadingDate && (
         <p className="text-sm text-muted">

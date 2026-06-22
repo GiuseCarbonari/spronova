@@ -10,19 +10,19 @@ const RING: Record<
   GO: {
     from: "#46b88a",
     to: "#7fc8c0",
-    labelColor: "#7fe0b3",
+    labelColor: "var(--ready-go)",
     glow: "rgba(70,184,138,0.45)",
   },
   MODIFY: {
     from: "#e0a83e",
     to: "#f0c878",
-    labelColor: "#f0c878",
+    labelColor: "var(--ready-modify)",
     glow: "rgba(224,168,62,0.45)",
   },
   SKIP: {
     from: "#d9665b",
     to: "#ed8a82",
-    labelColor: "#ed8a82",
+    labelColor: "var(--ready-skip)",
     glow: "rgba(217,102,91,0.45)",
   },
 };
@@ -30,24 +30,24 @@ const RING: Record<
 const TONE: Record<ReadinessResult["decision"], { border: string; bg: string; pillBg: string; pillBorder: string; pillText: string }> = {
   GO: {
     border: "border-ready-go-border",
-    bg: "from-ready-go/[0.12] to-[#0e121b]/60",
+    bg: "from-ready-go/[0.12] to-surface-2/60",
     pillBg: "bg-ready-go/[0.14]",
     pillBorder: "border-ready-go/40",
-    pillText: "text-[#7fe0b3]",
+    pillText: "text-ready-go",
   },
   MODIFY: {
     border: "border-ready-modify-border",
-    bg: "from-ready-modify/[0.12] to-[#0e121b]/60",
+    bg: "from-ready-modify/[0.12] to-surface-2/60",
     pillBg: "bg-ready-modify/[0.14]",
     pillBorder: "border-ready-modify/40",
-    pillText: "text-[#f0c878]",
+    pillText: "text-ready-modify",
   },
   SKIP: {
     border: "border-ready-skip-border",
-    bg: "from-ready-skip/[0.12] to-[#0e121b]/60",
+    bg: "from-ready-skip/[0.12] to-surface-2/60",
     pillBg: "bg-ready-skip/[0.14]",
     pillBorder: "border-ready-skip/40",
-    pillText: "text-[#ed8a82]",
+    pillText: "text-ready-skip",
   },
 };
 
@@ -101,6 +101,7 @@ export function ReadinessRing({ readiness }: { readiness: ReadinessResult }) {
 
   return (
     <div
+      id="tour-readiness"
       className={`relative overflow-hidden rounded-[24px] border bg-gradient-to-br px-5 py-5 ${tone.border} ${tone.bg}`}
     >
       {/* Header pill */}

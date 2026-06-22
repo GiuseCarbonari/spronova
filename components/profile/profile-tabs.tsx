@@ -137,7 +137,7 @@ export function ProfileTabs({
 
               {/* CP Hero */}
               {cpw ? (
-                <div className="rounded-[20px] border border-border bg-gradient-to-br from-[#222b3d]/40 to-[#0e121b]/40 px-6 py-7">
+                <div id="tour-cp-hero" className="rounded-[20px] border border-border bg-gradient-to-br from-brand/[0.10] to-surface-2/60 px-6 py-7">
                   <div className="flex items-center gap-2">
                     <span className="text-[10.5px] uppercase tracking-[0.14em] text-muted">
                       Potenza critica

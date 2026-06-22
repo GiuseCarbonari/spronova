@@ -140,7 +140,7 @@ export function RefreshControl({
         : "Aggiorna dati";
 
   return (
-    <div>
+    <div id="tour-refresh">
       <div className="flex items-center justify-end gap-1.5 text-[11.5px]">
         <span className={cn("h-[7px] w-[7px] rounded-full", STATUS_DOT[status])} />
         <span className={STATUS_TEXT[status]}>{timestamp ?? " "}</span>

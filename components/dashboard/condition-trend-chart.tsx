@@ -97,7 +97,7 @@ export function ConditionTrendChart({ days }: { days: WellnessDay[] }) {
   const selectedTsbY = tsbPoints[selected]?.y ?? tsbPoints.at(-1)!.y;
 
   return (
-    <section className="aurora-glass rounded-[28px] border-border bg-surface p-5">
+    <section id="tour-trend-chart" className="aurora-glass rounded-[28px] border-border bg-surface p-5">
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
           <p className="font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-accent2">

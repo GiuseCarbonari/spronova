@@ -154,15 +154,15 @@ export const FIRST_STEP = 3;
 export const LAST_STEP = 12;
 
 export const STEP_LABELS: Record<number, string> = {
-  3: "Consenso privacy",
-  4: "Come funziona",
-  5: "Chi sei",
-  6: "Obiettivi",
-  7: "La tua settimana",
-  8: "Parametri fisiologici",
-  9: "Attrezzatura",
-  10: "Salute e note",
-  11: "Inizia con CurveLoad",
+  3: "Come funziona",
+  4: "Consenso privacy",
+  5: "Dati e connessioni",
+  6: "Chi sei",
+  7: "Obiettivi",
+  8: "La tua settimana",
+  9: "Parametri fisiologici",
+  10: "Attrezzatura",
+  11: "Salute e note",
   12: "Prima analisi",
 };
 

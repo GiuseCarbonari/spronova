@@ -7,10 +7,10 @@ import { CalendarDays, Settings, SquareUser, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { label: "Oggi", href: "/dashboard", icon: Sparkles },
-  { label: "Piano", href: "/plan", icon: CalendarDays },
-  { label: "Profilo", href: "/profile", icon: SquareUser },
-  { label: "Impostazioni", href: "/settings/profile", icon: Settings },
+  { label: "Oggi", href: "/dashboard", icon: Sparkles, tourId: undefined },
+  { label: "Piano", href: "/plan", icon: CalendarDays, tourId: "tour-tab-plan" },
+  { label: "Profilo", href: "/profile", icon: SquareUser, tourId: "tour-tab-profile" },
+  { label: "Impostazioni", href: "/settings/profile", icon: Settings, tourId: undefined },
 ] as const;
 
 /**
@@ -38,6 +38,7 @@ export function BottomTabBar() {
             <Link
               key={tab.href}
               href={tab.href}
+              id={tab.tourId}
               aria-current={active ? "page" : undefined}
               className={cn(
                 "flex flex-col items-center gap-1 rounded-xl px-3 py-1 text-[10px] font-semibold transition-colors",

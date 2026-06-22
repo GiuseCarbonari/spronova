@@ -315,7 +315,7 @@ export default async function DashboardPage() {
 
       {/* Metrics grid */}
       {mirror && (
-        <section className="space-y-3">
+        <section id="tour-metrics" className="space-y-3">
           <div className="flex items-baseline justify-between">
             <span className="text-[11px] uppercase tracking-[0.14em] text-muted">
               Le tue metriche

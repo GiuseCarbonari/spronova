@@ -211,9 +211,39 @@ export default function LoginPage() {
             CurveLoad
           </p>
           <p className="mt-1 text-[13px] text-muted">
-            {isReset ? "Reimposta la tua password" : "Accedi al tuo account CurveLoad"}
+            {isReset
+              ? "Reimposta la tua password"
+              : isSignup
+                ? "Il tuo coach endurance — richiede Intervals.icu"
+                : "Accedi al tuo account CurveLoad"}
           </p>
         </div>
+
+        {/* Prerequisiti — visibili solo in signup */}
+        {isSignup && (
+          <div className="mb-5 rounded-[13px] border border-border bg-base px-4 py-3.5 text-[12.5px] leading-relaxed text-secondary">
+            <p className="mb-2 font-semibold text-foreground">Prima di iniziare</p>
+            <ul className="space-y-2">
+              <li className="flex items-start gap-2">
+                <span className="mt-[3px] text-brand">①</span>
+                <span>
+                  Serve un account su{" "}
+                  <strong className="text-foreground">intervals.icu</strong>{" "}
+                  (gratuito) — è da lì che CurveLoad legge HRV, sonno, attività e carico.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-[3px] text-brand">②</span>
+                <span>
+                  Nelle impostazioni di Intervals.icu, vai su{" "}
+                  <strong className="text-foreground">Connessioni</strong> e collega
+                  il tuo dispositivo GPS (Garmin, Wahoo, Polar…) o Strava, così i dati
+                  arrivano automaticamente ogni giorno.
+                </span>
+              </li>
+            </ul>
+          </div>
+        )}
 
         {/* Tab toggle Accedi / Registrati (nascosto nella modalità reset) */}
         {!isReset && (

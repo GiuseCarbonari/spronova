@@ -35,7 +35,7 @@ export function GenerateWeekButton({ hasPlan }: { hasPlan: boolean }) {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-1">
+    <div id="tour-generate-btn" className="flex flex-1 flex-col gap-1">
       <button
         type="button"
         onClick={() => void handleGenerate()}
