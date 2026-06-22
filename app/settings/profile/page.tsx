@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { LiminaShell } from "@/components/layout/limina-shell";
+import { CurveLoadShell } from "@/components/layout/curveload-shell";
 import { SettingsDossierForm } from "@/components/settings/dossier-form";
 import {
   DOSSIER_COLUMNS,
@@ -29,8 +29,8 @@ export default async function SettingsProfilePage() {
     .maybeSingle<DossierRow>();
 
   return (
-    <LiminaShell>
+    <CurveLoadShell>
       <SettingsDossierForm initialForm={rowToForm(row)} />
-    </LiminaShell>
+    </CurveLoadShell>
   );
 }

@@ -2,11 +2,11 @@ import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
 import { cn } from "@/lib/utils";
 
 /**
- * Shell mobile-first del design Limina: colonna singola centrata
+ * Shell mobile-first del design CurveLoad: colonna singola centrata
  * (max 640px) con tab bar fissa in basso. Usata dalle schermate già
  * ridisegnate; le altre restano su AppShell finché non vengono rifatte.
  */
-export function LiminaShell({
+export function CurveLoadShell({
   children,
   className,
 }: {

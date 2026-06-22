@@ -14,7 +14,7 @@ const TABS = [
 ] as const;
 
 /**
- * Tab bar fissa in basso (design Limina): sostituisce la nav in header
+ * Tab bar fissa in basso (design CurveLoad): sostituisce la nav in header
  * sulle schermate già ridisegnate. Le altre rotte restano su AppHeader
  * finché non vengono ridisegnate a loro volta.
  */

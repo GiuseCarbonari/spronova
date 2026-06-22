@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { GenerateWeekButton } from "@/components/plan/generate-week-button";
 import { PushButton } from "@/components/plan/push-button";
 import { RedistributeSection } from "@/components/plan/redistribute-section";
-import { LiminaShell } from "@/components/layout/limina-shell";
+import { CurveLoadShell } from "@/components/layout/curveload-shell";
 import type { BuiltSession } from "@/lib/planner/build-week";
 import type { Phase } from "@/lib/planner/phase-detector";
 import type { DayKey } from "@/lib/planner/session-selector";
@@ -11,7 +11,7 @@ import type { MirrorData } from "@/lib/intervals/sync";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * /plan — settimana di allenamento (design Limina).
+ * /plan — settimana di allenamento (design CurveLoad).
  * Server Component: legge l'ultimo piano + readiness di oggi.
  * La generazione avviene via POST /api/planner/generate.
  */
@@ -127,7 +127,7 @@ export default async function PlanPage() {
     : {};
 
   return (
-    <LiminaShell>
+    <CurveLoadShell>
       {/* Header */}
       <div className="flex min-w-0 items-start justify-between pt-2">
         <div className="min-w-0">
@@ -226,7 +226,7 @@ export default async function PlanPage() {
           />
         </div>
       )}
-    </LiminaShell>
+    </CurveLoadShell>
   );
 }
 

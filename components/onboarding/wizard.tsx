@@ -127,7 +127,7 @@ export function OnboardingWizard({
             </defs>
           </svg>
           <span className="font-serif text-[13px] tracking-[0.05em] text-secondary">
-            Spronova
+            CurveLoad
           </span>
         </div>
         <div>
@@ -191,7 +191,7 @@ export function OnboardingWizard({
           <div className="rounded-[18px] border border-border bg-surface p-5 text-sm leading-relaxed text-secondary">
             <p className="mb-2 font-medium text-foreground">Nota su DFA a1</p>
             <p>
-              L&apos;analisi DFA a1 — usata da Spronova per stimare la tua soglia
+              L&apos;analisi DFA a1 — usata da CurveLoad per stimare la tua soglia
               aerobica in modo non invasivo — non è una funzione nativa di nessun
               dispositivo. Su <strong>Garmin</strong> si attiva installando
               l&apos;app gratuita <strong>AlphaHRV</strong> (Connect IQ, di Marco
@@ -365,11 +365,11 @@ export function OnboardingWizard({
         </section>
       )}
 
-      {/* Step 11 — Inizia con Spronova */}
+      {/* Step 11 — Inizia con CurveLoad */}
       {step === 11 && (
         <section className="flex flex-col gap-6">
           <h1 className="font-serif text-[28px] font-medium leading-tight text-foreground">
-            Ecco come funziona Spronova
+            Ecco come funziona CurveLoad
           </h1>
 
           {/* Blocco 1: il loop quotidiano */}
@@ -378,7 +378,7 @@ export function OnboardingWizard({
               Ogni giorno
             </p>
             <p className="text-sm leading-relaxed text-secondary">
-              Spronova legge i tuoi dati da Intervals.icu — readiness, HRV, sonno,
+              CurveLoad legge i tuoi dati da Intervals.icu — readiness, HRV, sonno,
               carico — e decide se l&apos;allenamento del giorno è confermato,
               ridotto o rimandato. La dashboard ti mostra sempre cosa fare e perché.
             </p>
@@ -390,7 +390,7 @@ export function OnboardingWizard({
               Ogni settimana
             </p>
             <p className="text-sm leading-relaxed text-secondary">
-              Genera il piano settimanale in un click: Spronova costruisce la
+              Genera il piano settimanale in un click: CurveLoad costruisce la
               distribuzione dei carichi in base al tuo dossier e alla fase
               corrente. Il piano si pubblica direttamente su Intervals.icu,
               così lo ritrovi nel tuo calendario.
@@ -405,7 +405,7 @@ export function OnboardingWizard({
             <p className="text-sm leading-relaxed text-secondary">
               Intervals.icu è la fonte di tutti i tuoi dati: storico allenamenti,
               readiness giornaliera, HRV, metriche di carico. Senza un account
-              Intervals attivo e collegato, Spronova non può leggere nulla e il
+              Intervals attivo e collegato, CurveLoad non può leggere nulla e il
               coach resta cieco.
             </p>
             <ul className="mt-1 flex flex-col gap-1.5 text-sm text-secondary">

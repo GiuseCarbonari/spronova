@@ -9,7 +9,7 @@ import { getTemplate } from "@/lib/planner/workout-library";
  * "nostri" eventi sul calendario Intervals (per la riconciliazione/cancellazione
  * degli orfani) senza mai toccare eventi di altre origini.
  */
-export const WORKOUT_UID_PREFIX = "coach-ia-";
+export const WORKOUT_UID_PREFIX = "curveload-";
 
 export const FTP_ZONE_RANGES = {
   Z1: "50-60%",

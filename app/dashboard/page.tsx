@@ -5,7 +5,7 @@ import { MetricsGrid } from "@/components/dashboard/metrics-grid";
 import { ReadinessRing } from "@/components/dashboard/readiness-ring";
 import { RefreshControl } from "@/components/dashboard/refresh-control";
 import { TodaySessionCard } from "@/components/dashboard/today-session-card";
-import { LiminaShell } from "@/components/layout/limina-shell";
+import { CurveLoadShell } from "@/components/layout/curveload-shell";
 import { latestHrvMeasurement, normalizeHrvProtocol } from "@/lib/hrv";
 import type { BuiltSession } from "@/lib/planner/build-week";
 import type { MirrorData } from "@/lib/intervals/sync";
@@ -232,7 +232,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <LiminaShell>
+    <CurveLoadShell>
       {/* Header: wordmark + date + name */}
       <div className="flex items-start justify-between pt-2">
         <div>
@@ -254,7 +254,7 @@ export default async function DashboardPage() {
               </defs>
             </svg>
             <span className="font-serif text-[13px] tracking-[0.05em] text-secondary">
-              Spronova
+              CurveLoad
             </span>
           </div>
           <div className="mt-2 text-[11px] uppercase tracking-[0.16em] text-muted">
@@ -348,6 +348,6 @@ export default async function DashboardPage() {
           </button>
         </form>
       </div>
-    </LiminaShell>
+    </CurveLoadShell>
   );
 }

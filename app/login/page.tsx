@@ -192,7 +192,7 @@ export default function LoginPage() {
       <div className="w-full max-w-[420px] rounded-2xl border-[0.5px] border-border bg-surface p-8">
         {/* Logo / nome */}
         <div className="mb-6 flex flex-col items-center text-center">
-          <svg width="36" height="36" viewBox="0 0 58 58" fill="none" aria-label="Spronova logo" className="mb-3">
+          <svg width="36" height="36" viewBox="0 0 58 58" fill="none" aria-label="CurveLoad logo" className="mb-3">
             <circle
               cx="29" cy="29" r="22"
               stroke="url(#lgLogin)"
@@ -208,10 +208,10 @@ export default function LoginPage() {
             </defs>
           </svg>
           <p className="font-serif text-[20px] font-medium tracking-tight text-foreground">
-            Spronova
+            CurveLoad
           </p>
           <p className="mt-1 text-[13px] text-muted">
-            {isReset ? "Reimposta la tua password" : "Accedi al tuo account Spronova"}
+            {isReset ? "Reimposta la tua password" : "Accedi al tuo account CurveLoad"}
           </p>
         </div>
 
@@ -230,8 +230,8 @@ export default function LoginPage() {
         {!isReset && (
           <p className="mb-5 text-center text-[13px] leading-5 text-muted">
             {isSignin
-              ? "Usa le credenziali di Spronova. Il collegamento a Intervals.icu resta separato."
-              : "Crea il tuo account Spronova. Collegherai Intervals.icu nel passaggio successivo."}
+              ? "Usa le credenziali di CurveLoad. Il collegamento a Intervals.icu resta separato."
+              : "Crea il tuo account CurveLoad. Collegherai Intervals.icu nel passaggio successivo."}
           </p>
         )}
 

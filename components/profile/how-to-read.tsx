@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
  * collassabile in cima a /profile. Aperto di default la prima volta; la
  * scelta dell'utente viene ricordata in localStorage per le visite successive.
  */
-const STORAGE_KEY = "coach-ia:how-to-read-open";
+const STORAGE_KEY = "curveload:how-to-read-open";
 
 export function HowToRead() {
   // Aperto di default; al mount sincronizzo con la preferenza salvata (se c'è).

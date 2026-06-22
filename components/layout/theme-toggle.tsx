@@ -6,7 +6,7 @@ import { Moon, Sun } from "lucide-react";
 type Theme = "light" | "dark";
 
 /** Chiave localStorage condivisa con lo script anti-flash in app/layout.tsx. */
-const STORAGE_KEY = "spronova-theme";
+const STORAGE_KEY = "curveload-theme";
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement;

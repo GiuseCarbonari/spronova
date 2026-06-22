@@ -137,10 +137,6 @@ export function computeReadinessScore(readiness: ReadinessResult): number {
     max = readiness.priority === 0 ? 24 : readiness.priority === 1 ? 34 : max;
   }
 
-  if (readiness.decision === "MODIFY" && readiness.priority === 1) {
-    max = 62;
-  }
-
   return clampScore(rawScore, min, max);
 }
 

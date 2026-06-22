@@ -28,7 +28,7 @@ import {
 } from "@/lib/onboarding/dossier";
 
 /**
- * Form del dossier per /settings/profile (design Limina). A riposo ogni gruppo
+ * Form del dossier per /settings/profile (design CurveLoad). A riposo ogni gruppo
  * mostra i valori correnti in sola lettura; ✎ Modifica apre un solo gruppo
  * alla volta, riusando gli editor dell'onboarding. Salva con /api/onboarding/save;
  * Annulla ripristina l'ultimo valore salvato.

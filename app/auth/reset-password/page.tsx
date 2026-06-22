@@ -107,7 +107,7 @@ export default function ResetPasswordPage() {
     <main className="flex min-h-screen flex-col items-center justify-center bg-base px-4 py-10">
       <div className="w-full max-w-[420px] rounded-2xl border-[0.5px] border-border bg-surface p-8">
         <div className="mb-6 flex flex-col items-center text-center">
-          <svg width="36" height="36" viewBox="0 0 58 58" fill="none" aria-label="Spronova logo" className="mb-3">
+          <svg width="36" height="36" viewBox="0 0 58 58" fill="none" aria-label="CurveLoad logo" className="mb-3">
             <circle cx="29" cy="29" r="22" stroke="url(#lgReset)" strokeWidth="5" strokeLinecap="round" strokeDasharray="138 0" />
             <defs>
               <linearGradient id="lgReset" x1="0" y1="0" x2="58" y2="58">
@@ -116,7 +116,7 @@ export default function ResetPasswordPage() {
               </linearGradient>
             </defs>
           </svg>
-          <p className="font-serif text-[20px] font-medium tracking-tight text-foreground">Spronova</p>
+          <p className="font-serif text-[20px] font-medium tracking-tight text-foreground">CurveLoad</p>
           <p className="mt-1 text-[13px] text-muted">Imposta una nuova password</p>
         </div>
 

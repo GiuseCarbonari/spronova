@@ -1,8 +1,8 @@
 {
-  "name": "coach-ia",
+  "name": "curveload",
   "version": "0.1.0",
   "private": true,
-  "description": "Limina Endurance — implementazione web multi-utente del protocollo Section 11, con Intervals.icu come fonte dati.",
+  "description": "CurveLoad — implementazione web multi-utente del protocollo Section 11, con Intervals.icu come fonte dati.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

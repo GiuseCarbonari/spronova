@@ -3,7 +3,7 @@ import { WORKOUT_UID_PREFIX } from "@/lib/planner/intervals-workout-format";
 
 /**
  * Seleziona gli eventi ORFANI da cancellare dopo un push: i NOSTRI workout
- * (external_id con prefisso `coach-ia-`) presenti sul calendario ma il cui
+ * (external_id con prefisso `curveload-`) presenti sul calendario ma il cui
  * external_id non è più nel set del piano appena inviato. È il caso della
  * settimana ridistribuita, dove una seduta cambia giorno o tipo: l'upsert (per
  * external_id) crea il nuovo evento e lascia orfano il vecchio.

@@ -61,7 +61,7 @@ interface ReconcileResult {
 
 /**
  * Rimuove gli eventi orfani: i NOSTRI workout (external_id con prefisso
- * `coach-ia-`) presenti sul calendario nella settimana del piano ma non più
+ * `curveload-`) presenti sul calendario nella settimana del piano ma non più
  * nel set appena inviato — è il caso della settimana ridistribuita, dove una
  * seduta cambia giorno o tipo e l'upsert (per external_id) crea il nuovo
  * evento lasciando orfano il vecchio. Il filtro sul prefisso garantisce che

@@ -1,6 +1,6 @@
 import type { CookieOptions } from "@supabase/ssr";
 
-export const REMEMBER_ACCESS_COOKIE = "coach-ia-remember-access";
+export const REMEMBER_ACCESS_COOKIE = "curveload-remember-access";
 export const REMEMBER_ACCESS_MAX_AGE = 400 * 24 * 60 * 60;
 
 export function shouldRememberAccess(value: string | undefined): boolean {

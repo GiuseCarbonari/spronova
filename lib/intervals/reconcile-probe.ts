@@ -164,8 +164,8 @@ export async function runReconcileProbe(
   const date = tomorrowInRome();
   const events: ProbeWorkout[] = [
     {
-      uid: "coach-ia-reconcile-A",
-      external_id: "coach-ia-reconcile-A",
+      uid: "curveload-reconcile-A",
+      external_id: "curveload-reconcile-A",
       category: "WORKOUT",
       start_date_local: `${date}T11:00:00`,
       name: `${PROBE_NAME_PREFIX} A`,
@@ -174,8 +174,8 @@ export async function runReconcileProbe(
       description: "- 10m 50-60%",
     },
     {
-      uid: "coach-ia-reconcile-B",
-      external_id: "coach-ia-reconcile-B",
+      uid: "curveload-reconcile-B",
+      external_id: "curveload-reconcile-B",
       category: "WORKOUT",
       start_date_local: `${date}T12:00:00`,
       name: `${PROBE_NAME_PREFIX} B`,

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import type { SavedGapAnalysis } from "@/components/profile/event-analysis";
-import { LiminaShell } from "@/components/layout/limina-shell";
+import { CurveLoadShell } from "@/components/layout/curveload-shell";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
 import type { AthleteProfileData } from "@/lib/profile/build-profile";
 import type { TerrainSummary } from "@/lib/terrain/gpx-parser";
@@ -32,7 +32,7 @@ export default async function ProfilePage() {
   const raceEstimate = (row?.race_estimate ?? null) as RaceEstimateV2 | null;
 
   return (
-    <LiminaShell>
+    <CurveLoadShell>
       <ProfileTabs
         profile={profile}
         cpw={cpw}
@@ -43,6 +43,6 @@ export default async function ProfilePage() {
         row={row}
       />
 
-    </LiminaShell>
+    </CurveLoadShell>
   );
 }

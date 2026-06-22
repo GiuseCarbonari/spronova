@@ -6,7 +6,7 @@ import type { BuiltSession } from "@/lib/planner/build-week";
 import type { DayKey } from "@/lib/planner/session-selector";
 
 /**
- * Griglia settimanale (design Limina). Lista verticale di 7 card con
+ * Griglia settimanale (design CurveLoad). Lista verticale di 7 card con
  * border-left colorato per tipo. Click → accordion con dettaglio seduta
  * e bottone "Non posso allenarmi questo giorno".
  */
