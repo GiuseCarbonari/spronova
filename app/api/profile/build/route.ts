@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 
 import { decryptToken } from "@/lib/crypto";
 import { IntervalsApiError, IntervalsFetcher } from "@/lib/intervals-client";
+import { isRunnerOnly } from "@/lib/onboarding/dossier";
 import { buildAthleteProfile } from "@/lib/profile/build-profile";
+import { buildRunnerProfile } from "@/lib/profile/build-runner-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -43,10 +45,33 @@ export async function POST() {
     );
   }
 
+  // Sport dal dossier: i runner usano CS/D′ (pace-curves), i ciclisti CP/W′
+  // (power-curves). Il default (sport non dichiarato) resta il percorso bici.
+  const { data: dossier } = await admin
+    .from("athlete_profiles")
+    .select("sport_principali")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const runner = isRunnerOnly(
+    (dossier?.sport_principali as string[] | null) ?? []
+  );
+
   const fetcher = new IntervalsFetcher(
     decryptToken(connection.access_token_encrypted)
   );
 
+  return runner
+    ? buildRunner(fetcher, admin, supabase, user.id)
+    : buildCyclist(fetcher, admin, supabase, user.id);
+}
+
+/** Percorso ciclismo: power-curves → CP/W′ (PRD §33). */
+async function buildCyclist(
+  fetcher: IntervalsFetcher,
+  admin: ReturnType<typeof createAdminClient>,
+  supabase: ReturnType<typeof createClient>,
+  userId: string
+) {
   let powerCurves;
   let athleteRaw;
   try {
@@ -56,23 +81,7 @@ export async function POST() {
     ]);
   } catch (error) {
     if (error instanceof IntervalsApiError && error.status === 401) {
-      // Stesso comportamento del sync: token morto → connessione cancellata,
-      // il middleware riporterà l'utente a /connect.
-      await admin.from("intervals_connections").delete().eq("user_id", user.id);
-      await admin.from("audit_logs").insert({
-        user_id: user.id,
-        action: "intervals.token_invalid",
-        source: "profile_build",
-        payload: {},
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: "intervals_unauthorized",
-          message: "Sessione Intervals scaduta — riconnetti",
-        },
-        { status: 401 }
-      );
+      return handleTokenInvalid(admin, userId);
     }
     const status = error instanceof IntervalsApiError ? error.status : null;
     console.error(
@@ -111,7 +120,7 @@ export async function POST() {
   // service role. updated_at lo aggiorna il trigger del DB.
   const { error: upsertError } = await supabase
     .from("athlete_profiles")
-    .upsert({ user_id: user.id, profile_data: profileData }, { onConflict: "user_id" });
+    .upsert({ user_id: userId, profile_data: profileData }, { onConflict: "user_id" });
   if (upsertError) {
     console.error("Salvataggio profilo fallito:", upsertError.message);
     return NextResponse.json(
@@ -125,7 +134,7 @@ export async function POST() {
   }
 
   await admin.from("audit_logs").insert({
-    user_id: user.id,
+    user_id: userId,
     action: "profile.built",
     source: "profile_build",
     payload: {
@@ -141,4 +150,118 @@ export async function POST() {
     phenotype: profileData.phenotype.primary,
     confidence: profileData.meta.confidence,
   });
+}
+
+/** Percorso corsa: pace-curves → CS/D′ + power-law (Modulo Corsa). */
+async function buildRunner(
+  fetcher: IntervalsFetcher,
+  admin: ReturnType<typeof createAdminClient>,
+  supabase: ReturnType<typeof createClient>,
+  userId: string
+) {
+  let paceCurves;
+  let athleteRaw;
+  try {
+    [paceCurves, athleteRaw] = await Promise.all([
+      fetcher.getPaceCurves(),
+      fetcher.getProfile(),
+    ]);
+  } catch (error) {
+    if (error instanceof IntervalsApiError && error.status === 401) {
+      return handleTokenInvalid(admin, userId);
+    }
+    const status = error instanceof IntervalsApiError ? error.status : null;
+    console.error(
+      `Build profilo corsa fallita: ${status ? `HTTP ${status}` : "errore di rete"}`
+    );
+    return NextResponse.json(
+      {
+        success: false,
+        error: "api_error",
+        message: "Lettura dati da Intervals fallita, riprova",
+      },
+      { status: 502 }
+    );
+  }
+
+  let runnerData;
+  try {
+    runnerData = buildRunnerProfile(paceCurves, athleteRaw);
+  } catch (error) {
+    console.error(
+      "Build profilo corsa fallita:",
+      error instanceof Error ? error.message : "errore sconosciuto"
+    );
+    return NextResponse.json(
+      {
+        success: false,
+        error: "build_error",
+        message:
+          "Dati corsa insufficienti: registra qualche corsa con GPS su Intervals.icu, poi riprova",
+      },
+      { status: 422 }
+    );
+  }
+
+  const { error: upsertError } = await supabase
+    .from("athlete_profiles")
+    .upsert(
+      { user_id: userId, runner_profile_data: runnerData },
+      { onConflict: "user_id" }
+    );
+  if (upsertError) {
+    console.error("Salvataggio profilo corsa fallito:", upsertError.message);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "internal_error",
+        message: "Salvataggio profilo fallito",
+      },
+      { status: 500 }
+    );
+  }
+
+  await admin.from("audit_logs").insert({
+    user_id: userId,
+    action: "profile.built",
+    source: "profile_build",
+    payload: {
+      sport: "run",
+      phenotype: runnerData.phenotype.primary,
+      confidence: runnerData.meta.confidence,
+      cs_ms: runnerData.cs_dprime?.cs_ms ?? null,
+      d_prime_m: runnerData.cs_dprime?.d_prime_m ?? null,
+    },
+  });
+
+  return NextResponse.json({
+    success: true,
+    sport: "run",
+    phenotype: runnerData.phenotype.primary,
+    confidence: runnerData.meta.confidence,
+  });
+}
+
+/** Token revocato lato Intervals: cancella la connessione e logga. */
+async function handleTokenInvalid(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string
+) {
+  // Stesso comportamento del sync: token morto → connessione cancellata,
+  // il middleware riporterà l'utente a /connect.
+  await admin.from("intervals_connections").delete().eq("user_id", userId);
+  await admin.from("audit_logs").insert({
+    user_id: userId,
+    action: "intervals.token_invalid",
+    source: "profile_build",
+    payload: {},
+  });
+  return NextResponse.json(
+    {
+      success: false,
+      error: "intervals_unauthorized",
+      message: "Sessione Intervals scaduta — riconnetti",
+    },
+    { status: 401 }
+  );
 }

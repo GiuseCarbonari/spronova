@@ -9,6 +9,7 @@
  */
 
 import type { PowerCurvesResponse } from "@/lib/profile/power-profile";
+import type { PaceCurvesResponse } from "@/lib/profile/pace-profile";
 import type { IntervalsWorkoutEvent } from "@/lib/planner/intervals-workout-format";
 import type { ActivityStream } from "@/lib/terrain/velocity-signature";
 
@@ -263,6 +264,24 @@ export class IntervalsFetcher {
   getPowerCurves(): Promise<PowerCurvesResponse> {
     return this.get<PowerCurvesResponse>("/athlete/0/power-curves.json", {
       type: "Ride",
+      curves: "42d,90d,1y,all",
+    });
+  }
+
+  /**
+   * GET /api/v1/athlete/0/pace-curves.json — curva pace-durata (corsa).
+   *
+   * ENDPOINT DIVERSO da power-curves: per i runner power-curves?type=Run è
+   * vuoto (verificato 2026-06-24). La risposta ha l'asse DISTANZA→TEMPO:
+   * `distance[]` (metri) e `values[]` (secondi), con `paceModels[]` che
+   * contengono CS/D′ già calcolati da Intervals (type "CS", campi
+   * criticalSpeed m/s e dPrime m, con r2). pmType=CS è il default ma lo si
+   * passa esplicito per chiarezza.
+   */
+  getPaceCurves(): Promise<PaceCurvesResponse> {
+    return this.get<PaceCurvesResponse>("/athlete/0/pace-curves.json", {
+      type: "Run",
+      pmType: "CS",
       curves: "42d,90d,1y,all",
     });
   }
