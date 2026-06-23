@@ -305,6 +305,20 @@
   border-left-color: var(--bg-surface) !important;
 }
 
+.curveload-tour-skip-btn {
+  font-size: 11px !important;
+  color: var(--text-faint) !important;
+  background: none !important;
+  border: none !important;
+  cursor: pointer !important;
+  padding: 0 8px 0 0 !important;
+  margin-right: auto !important;
+  transition: color 0.15s !important;
+}
+.curveload-tour-skip-btn:hover {
+  color: var(--text-muted) !important;
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
