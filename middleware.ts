@@ -37,7 +37,16 @@ export async function middleware(request: NextRequest) {
           );
           response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
+            // Propaga sempre Max-Age lungo sui cookie di sessione Supabase
+            // così il refresh token sopravvive alla chiusura dell'app su mobile.
+            const isAuthCookie =
+              name.startsWith("sb-") && name.includes("-auth-token");
+            response.cookies.set(name, value, {
+              ...options,
+              ...(isAuthCookie && !options.maxAge && options.maxAge !== 0
+                ? { maxAge: 400 * 24 * 60 * 60 }
+                : {}),
+            });
           });
         },
       },
