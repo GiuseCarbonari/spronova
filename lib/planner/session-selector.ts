@@ -16,6 +16,11 @@
 import { getTemplate, type WorkoutTemplate } from "@/lib/planner/workout-library";
 import { getRunTemplate } from "@/lib/planner/run-workout-library";
 import type { Phase } from "@/lib/planner/phase-detector";
+import {
+  resolveProgressionState,
+  isBaseState,
+  type ProgressionState,
+} from "@/lib/planner/progression";
 
 export type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
@@ -41,6 +46,10 @@ export interface SelectedSession {
   adapted_duration_min: number | null;
   target_zone: string | null;
   rationale: string;
+  /** Step di progressione §5.2 (duration vector, 0 = base). Retrocompat. */
+  progression_step?: number;
+  /** Stato multi-vettore §5.2 {duration,recovery,intensity}. */
+  progression_state?: ProgressionState;
 }
 
 /** Sottoinsieme del dossier che serve al planner (§12.2). */
@@ -101,6 +110,75 @@ const HARD_LIMIT_LOW_HOURS = 10; // ≤10h ⇒ max 2 dure; >10h ⇒ 3
 
 function dayIndex(day: DayKey): number {
   return DAY_KEYS.indexOf(day);
+}
+
+/**
+ * Priorità di SEQUENCING per dominio (WORKOUT_REFERENCE.md §3.2). Più alto =
+ * va piazzato PRIMA nella settimana (giorni più freschi). Usato per ordinare
+ * le dure ravvicinate.
+ *
+ *  - anaerobic: massima freschezza richiesta ("place early in the week").
+ *  - vo2max / threshold: alta (TH trattato come VO₂max — alto costo recupero).
+ *  - strength_endurance: media-alta ma con vincolo "non prima di VO₂max/lungo"
+ *    (gestito a parte); qui sotto VO₂max così non lo precede.
+ *  - sweet_spot / tempo / race_specific: più bassa.
+ */
+function sequencingPriority(domain: string | undefined): number {
+  switch (domain) {
+    case "anaerobic":
+      return 5;
+    case "vo2max":
+    case "threshold":
+      return 4;
+    case "strength_endurance":
+      return 3;
+    case "race_specific":
+      return 2;
+    case "sweet_spot":
+    case "tempo":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+/** Dominio del template (ciclismo o corsa) per un library_id. */
+function domainOf(libraryId: string, isRun: boolean): string | undefined {
+  const t = isRun ? getRunTemplate(libraryId) : getTemplate(libraryId);
+  return t?.domain;
+}
+
+/**
+ * §3.2 — Applica l'ordering alle dure RAVVICINATE. Per ogni coppia di sedute
+ * dure consecutive (tra cui c'è ≤1 giorno di recupero, cioè gap di giorni ≤2)
+ * la cui priorità di sequencing è invertita, scambia i due giorni: la dura a
+ * priorità più alta deve venire prima. Con gap ≥3 (≥2 giorni di recupero)
+ * l'ordine è ininfluente e non si interviene. Mutazione in-place della mappa.
+ */
+function enforceCloseHardOrdering(
+  sessions: Map<DayKey, SelectedSession>,
+  isRun: boolean
+): void {
+  const hard = DAY_KEYS.map((d) => sessions.get(d)).filter(
+    (s): s is SelectedSession => s != null && s.is_hard && s.library_id != null
+  );
+  for (let i = 0; i < hard.length - 1; i++) {
+    const a = hard[i];
+    const b = hard[i + 1];
+    const gap = dayIndex(b.day) - dayIndex(a.day); // ≥1 (a precede b)
+    if (gap > 2) continue; // ≥2 giorni di recupero: ordine ininfluente
+    const pa = sequencingPriority(domainOf(a.library_id!, isRun));
+    const pb = sequencingPriority(domainOf(b.library_id!, isRun));
+    if (pb > pa) {
+      // b (priorità più alta) dovrebbe precedere a: scambia i giorni.
+      const swappedA: SelectedSession = { ...b, day: a.day };
+      const swappedB: SelectedSession = { ...a, day: b.day };
+      sessions.set(a.day, swappedA);
+      sessions.set(b.day, swappedB);
+      hard[i] = swappedA;
+      hard[i + 1] = swappedB;
+    }
+  }
 }
 
 /** Giorni allenabili: i preferiti se indicati, altrimenti tutti meno gli impossibili. */
@@ -242,20 +320,6 @@ function capForDay(day: DayKey, dossier: PlannerDossier): number | null {
   return cap != null && cap > 0 ? cap : null;
 }
 
-interface Adapted {
-  minutes: number;
-  truncated: boolean;
-}
-
-function adaptDuration(template: WorkoutTemplate, day: DayKey, dossier: PlannerDossier): Adapted {
-  const est = template.est_total_minutes;
-  const cap = capForDay(day, dossier);
-  if (cap != null && est > cap) {
-    return { minutes: cap, truncated: true };
-  }
-  return { minutes: est, truncated: false };
-}
-
 /** Nota di fattibilità indoor (no rulli + lungo) — non cambia i minuti. */
 function indoorNote(template: WorkoutTemplate, dossier: PlannerDossier): string | null {
   if (
@@ -277,7 +341,11 @@ function buildSession(
   baseNote: string,
   dossier: PlannerDossier,
   extraNotes: string[],
-  isRun = false
+  isRun = false,
+  /** Stato di progressione §5.2 (multi-vettore) per questo formato. */
+  progressionState?: ProgressionState,
+  /** Fattore volume del mesociclo §4.2 (1 = nessuna variazione). */
+  volumeFactor = 1
 ): SelectedSession {
   const template = isRun ? getRunTemplate(libraryId) : getTemplate(libraryId);
   if (!template) {
@@ -291,8 +359,34 @@ function buildSession(
       rationale: `Template ${libraryId} assente in libreria: riposo precauzionale.`,
     };
   }
-  const { minutes, truncated } = adaptDuration(template, day, dossier);
   const notes = [baseNote, ...extraNotes];
+
+  // §5.2 — progressione multi-vettore (solo ciclismo, solo formati con scaletta).
+  // duration → recovery → intensity. Sovrascrive durata/struttura PRIMA del cap.
+  let estTotal = template.est_total_minutes;
+  let appliedState: ProgressionState | undefined;
+  if (!isRun && progressionState != null) {
+    const resolved = resolveProgressionState(libraryId, progressionState);
+    if (resolved) {
+      estTotal = resolved.est_total_minutes;
+      appliedState = progressionState;
+      if (!isBaseState(progressionState) && resolved.duration_step > 0) {
+        notes.push(
+          `Progressione §5.2 (durata, step ${resolved.duration_step}): ${resolved.structure}.`
+        );
+      }
+      notes.push(...resolved.notes);
+    }
+  }
+
+  // §4.2 — traiettoria volume del mesociclo: scala la durata prescritta.
+  if (volumeFactor !== 1) {
+    estTotal = Math.round(estTotal * volumeFactor);
+  }
+
+  const cap = capForDay(day, dossier);
+  const truncated = cap != null && estTotal > cap;
+  const minutes = truncated ? cap : estTotal;
   if (truncated) {
     notes.push(
       `Durata adattata a ${minutes}′ (max del giorno): applicate regole time-crunch §5.4 (taglia CD, poi WU, poi n. intervalli).`
@@ -312,6 +406,9 @@ function buildSession(
     adapted_duration_min: minutes,
     target_zone: template.power_target_zone,
     rationale: notes.filter(Boolean).join(" "),
+    ...(appliedState != null
+      ? { progression_step: appliedState.duration, progression_state: appliedState }
+      : {}),
   };
 }
 
@@ -327,12 +424,31 @@ export function selectWeekSessions(
   dossier: PlannerDossier,
   readiness: PlannerReadiness,
   gapAnalysis: PlannerLimiters | null,
-  availableDays: DayKey[]
+  availableDays: DayKey[],
+  /**
+   * Stato di progressione §5.2 per formato (library_id → stato multi-vettore di
+   * questa settimana), derivato dallo storico dal chiamante. Vuoto = base.
+   */
+  progressionByFormat: Record<string, ProgressionState> = {},
+  /**
+   * Posizione nel mesociclo §4.2: fattore volume e flag scarico. Default neutro
+   * (volume_factor 1, niente deload) se il chiamante non lo passa.
+   */
+  mesocycle: { volume_factor: number; is_deload: boolean } = {
+    volume_factor: 1,
+    is_deload: false,
+  }
 ): SelectedSession[] {
   const available = new Set(availableDays);
   const lev = new Set(gapAnalysis?.levers ?? []);
-  const maxHard =
-    (dossier.disponibilita_ore_sett ?? 0) > HARD_LIMIT_LOW_HOURS ? 3 : 2;
+  const volumeFactor = mesocycle.volume_factor;
+  // §4.2 — in scarico una sola seduta strutturata (ridotta); altrimenti il
+  // tetto dipende dalle ore disponibili (≤10h → 2, >10h → 3).
+  const maxHard = mesocycle.is_deload
+    ? 1
+    : (dossier.disponibilita_ore_sett ?? 0) > HARD_LIMIT_LOW_HOURS
+      ? 3
+      : 2;
   const minGapDays = effectiveMinGapDays(readiness.tsb ?? null, readiness.ri ?? null);
 
   const run = isRunSport(dossier);
@@ -388,7 +504,9 @@ export function selectWeekSessions(
         `Fase ${phase}. Lungo settimanale. ${longChoice.note}.`,
         dossier,
         extra,
-        run
+        run,
+        undefined,
+        volumeFactor
       );
       sessions.set(longDay, session);
       taken.add(longDay);
@@ -424,19 +542,25 @@ export function selectWeekSessions(
     });
   }
 
-  // 3) Piazza le dure: primaria su Mar/Mer/Lun, secondaria su Gio/Ven, ecc.
-  const primaryCandidates: DayKey[] = ["tue", "wed", "mon"];
-  const secondaryCandidates: DayKey[] = ["thu", "fri", "wed", "tue"];
-  const thirdCandidates: DayKey[] = ["wed", "fri", "thu", "mon"];
+  // 3) Ordina le dure per priorità di sequencing §3.2 PRIMA di assegnare i
+  //    giorni: la seduta che richiede più freschezza (anaerobico, poi
+  //    VO₂max/threshold) prende i giorni più "early". A parità, l'ordine
+  //    originale (primaria prima della secondaria) viene mantenuto (sort stabile).
+  const orderedSlotPlan = hardSlotPlan
+    .map((entry, i) => ({ entry, i }))
+    .sort((a, b) => {
+      const pa = sequencingPriority(domainOf(a.entry.choice.library_id, run));
+      const pb = sequencingPriority(domainOf(b.entry.choice.library_id, run));
+      return pb - pa || a.i - b.i;
+    })
+    .map((x) => x.entry);
 
-  for (const { slot, choice } of hardSlotPlan) {
-    const candidates =
-      slot === "primary_hard"
-        ? primaryCandidates
-        : slot === "secondary_hard"
-          ? secondaryCandidates
-          : thirdCandidates;
-    const day = pickDay(candidates, available, taken, hardDays, true, minGapDays);
+  // Pool di candidati condiviso, da inizio a fine settimana: chi ha priorità
+  // più alta (piazzato per primo) sceglie i giorni più freschi.
+  const earlyToLate: DayKey[] = ["tue", "wed", "thu", "mon", "fri", "sat", "sun"];
+
+  for (const { slot, choice } of orderedSlotPlan) {
+    const day = pickDay(earlyToLate, available, taken, hardDays, true, minGapDays);
     if (!day) continue;
 
     let libId = choice.library_id;
@@ -468,6 +592,12 @@ export function selectWeekSessions(
       continue;
     }
 
+    if (mesocycle.is_deload) {
+      extra.push(
+        "Settimana di scarico §4.2: unica seduta strutturata, volume ridotto a intensità invariata."
+      );
+    }
+
     const finalTemplate = run ? getRunTemplate(libId) : getTemplate(libId);
     const session = buildSession(
       day,
@@ -476,12 +606,20 @@ export function selectWeekSessions(
       `Fase ${phase}. Seduta dura ${slot === "primary_hard" ? "primaria" : slot === "secondary_hard" ? "secondaria" : "aggiuntiva"}. ${choice.note}.`,
       dossier,
       extra,
-      run
+      run,
+      progressionByFormat[libId],
+      volumeFactor
     );
     sessions.set(day, session);
     taken.add(day);
     if (finalTemplate?.is_hard_session) hardDays.push(day);
   }
+
+  // 3b) Sicurezza §3.2: per le dure RAVVICINATE (≤1 giorno di recupero tra
+  //     loro), quella a priorità di sequencing più alta deve venire PRIMA.
+  //     Se l'ordine è invertito, scambia i due giorni. Con ≥2 giorni di gap
+  //     l'ordine non conta (§3.2) e non si tocca nulla.
+  enforceCloseHardOrdering(sessions, run);
 
   // 4) Taper: un opener leggero sul primo giorno disponibile infrasett.
   if (phase === "taper") {
@@ -528,7 +666,10 @@ export function selectWeekSessions(
         : afterHard
           ? "Recupero attivo dopo la seduta dura del giorno prima (§3.1)."
           : "Mantenimento aerobico facile.";
-    sessions.set(day, buildSession(day, fillId, slot, note, dossier, [], run));
+    sessions.set(
+      day,
+      buildSession(day, fillId, slot, note, dossier, [], run, undefined, volumeFactor)
+    );
   }
 
   return DAY_KEYS.map((d) => sessions.get(d)!);

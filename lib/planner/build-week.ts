@@ -32,6 +32,10 @@ import {
   type RunWorkoutDomain,
   type RunWorkoutTemplate,
 } from "@/lib/planner/run-workout-library";
+import {
+  resolveProgressionState,
+  type ProgressionState,
+} from "@/lib/planner/progression";
 
 const PROTOCOL_VERSION = "11.33";
 const VALIDATION_PROTOCOL = "URF_v5.1";
@@ -166,6 +170,13 @@ export interface BuiltSession {
   date: string; // YYYY-MM-DD
   is_hard: boolean;
   rest: boolean;
+  /**
+   * true = giorno reso "riposo" perché l'utente lo ha esplicitamente bloccato
+   * (ridistribuzione "Non posso allenarmi questo giorno"). A differenza di un
+   * riposo normale, NON va rigenerato da "Rigenera": è una scelta dell'utente.
+   * Opzionale: i piani esistenti senza questo campo lo trattano come assente.
+   */
+  blocked_by_user?: boolean;
   title: string;
   sport: string;
   estimated_duration_min: number | null;
@@ -179,6 +190,13 @@ export interface BuiltSession {
   session_rationale: string;
   fatigue_alternative_library_id: string | null;
   library_id: string | null;
+  /**
+   * Indice dello step di progressione §5.2 (duration vector, 0 = base).
+   * Assente sui riposi e sui formati non progredibili. Retrocompat.
+   */
+  progression_step?: number;
+  /** Stato multi-vettore §5.2 {duration,recovery,intensity} applicato. */
+  progression_state?: ProgressionState;
   frameworks_cited: string[];
   validation_metadata: ValidationMetadata | null;
 }
@@ -326,7 +344,21 @@ export function buildWeek(
       ? RUN_DOMAIN_FRAMEWORKS[template.domain as RunWorkoutDomain]
       : DOMAIN_FRAMEWORKS[template.domain as WorkoutDomain];
     const frameworks = [...BASE_FRAMEWORKS, ...(domainFrameworks ?? [])];
-    const { description, structure } = describe(template, s.adapted_duration_min, run);
+
+    // §5.2 — se la seduta è stata progredita (multi-vettore), usa la struttura
+    // risolta dello stato al posto di quella base (durata già adattata nel selector).
+    const progResolved =
+      !run && s.progression_state != null
+        ? resolveProgressionState(s.library_id, s.progression_state)
+        : null;
+    const effectiveTemplate = progResolved
+      ? { ...template, structure: progResolved.structure }
+      : template;
+    const { description, structure } = describe(
+      effectiveTemplate,
+      s.adapted_duration_min,
+      run
+    );
 
     const checklist_passed: Array<number | string> = [0, 1, 8];
 
@@ -364,6 +396,8 @@ export function buildWeek(
       session_rationale: s.rationale,
       fatigue_alternative_library_id: FATIGUE_ALTERNATIVE[s.library_id] ?? null,
       library_id: s.library_id,
+      ...(s.progression_step != null ? { progression_step: s.progression_step } : {}),
+      ...(s.progression_state != null ? { progression_state: s.progression_state } : {}),
       frameworks_cited: frameworks,
       validation_metadata,
     };

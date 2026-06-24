@@ -99,11 +99,16 @@ function hardPriority(libraryId: string | null, phase: Phase): number {
   return 2;
 }
 
-function makeRest(original: BuiltSession, reason: string): BuiltSession {
+function makeRest(
+  original: BuiltSession,
+  reason: string,
+  blockedByUser = false
+): BuiltSession {
   return {
     ...original,
     is_hard: false,
     rest: true,
+    blocked_by_user: blockedByUser,
     title: `${DAY_LABELS_CAPS[original.day as DayKey]} — Riposo`,
     sport: "Riposo",
     estimated_duration_min: null,
@@ -190,7 +195,11 @@ export function redistributeWeek(
     // ─── Sessione FACILE: cerca un giorno di riposo tra i rimanenti ──────
     const freeSlot = remainingDays
       .filter((d) => d !== blockedDay)
-      .find((d) => week.get(d)?.rest === true);
+      .find((d) => {
+        const slot = week.get(d);
+        // Non riusare un giorno che l'utente ha bloccato esplicitamente.
+        return slot?.rest === true && slot.blocked_by_user !== true;
+      });
 
     if (freeSlot) {
       const targetDate = week.get(freeSlot)!.date;
@@ -204,7 +213,8 @@ export function redistributeWeek(
         blockedDay,
         makeRest(
           blockedSession,
-          `Sessione facile spostata a ${DAY_LABELS[freeSlot]}.`
+          `Sessione facile spostata a ${DAY_LABELS[freeSlot]}.`,
+          true
         )
       );
       changes.push({
@@ -220,7 +230,8 @@ export function redistributeWeek(
         blockedDay,
         makeRest(
           blockedSession,
-          "Sessione facile rimossa: nessun giorno libero disponibile."
+          "Sessione facile rimossa: nessun giorno libero disponibile.",
+          true
         )
       );
       changes.push({
@@ -239,6 +250,7 @@ export function redistributeWeek(
       if (d === blockedDay) continue;
       const existing = week.get(d);
       if (!existing || existing.is_hard) continue; // già duro: non sovrascrivere
+      if (existing.blocked_by_user === true) continue; // bloccato dall'utente: non riusare
       if (!respects48h(d, otherHardDays, minGapDays)) continue; // violerebbe il gap minimo
       const cap = capForDay(d, dossier);
       if (cap != null && blockedDuration > cap) continue; // non ci sta nel cap
@@ -268,7 +280,8 @@ export function redistributeWeek(
         blockedDay,
         makeRest(
           blockedSession,
-          `Seduta dura spostata a ${DAY_LABELS[targetDay]}.`
+          `Seduta dura spostata a ${DAY_LABELS[targetDay]}.`,
+          true
         )
       );
       changes.push({
@@ -284,7 +297,8 @@ export function redistributeWeek(
         blockedDay,
         makeRest(
           blockedSession,
-          "Seduta dura rimossa: nessuno spazio con recupero 48h disponibile."
+          "Seduta dura rimossa: nessuno spazio con recupero 48h disponibile.",
+          true
         )
       );
       changes.push({
@@ -352,6 +366,238 @@ export function redistributeWeek(
   );
 
   return { new_week: newWeek, changes, volume_reduced: volumeReduced, explanation };
+}
+
+// --- recoverMissedSession ----------------------------------------------------
+
+export type Readiness = "GO" | "MODIFY" | "SKIP";
+
+export interface RecoverResult {
+  new_week: BuiltSession[];
+  changes: RedistributeChange[];
+  /** Esito del recupero: la seduta è stata spostata, oppure no e perché. */
+  recovered: boolean;
+  /** Motivo del rifiuto quando `recovered` è false. */
+  blocked_reason: string | null;
+  /** Giorno consigliato per la dura (può NON essere oggi). Null se nessuno. */
+  suggested_day: DayKey | null;
+  /** Avviso da mostrare quando recuperare oggi è rischioso (MODIFY/SKIP). */
+  risk_warning: string | null;
+  /** true se la seduta applicata è la versione facile (downgrade di fatica). */
+  downgraded: boolean;
+  explanation: string;
+}
+
+/**
+ * Esamina i giorni dal `today` in poi e restituisce il PRIMO valido per una
+ * dura: oggi solo se readiness=GO; i giorni futuri (readiness ignota) se
+ * disponibili, liberi/facili, con 48h dalle altre dure e dentro il cap.
+ */
+function findBestRecoveryDay(
+  week: Map<DayKey, BuiltSession>,
+  sourceDay: DayKey,
+  today: DayKey,
+  todayReadiness: Readiness,
+  availableDays: Set<DayKey>,
+  dossier: { durata_max_weekday_min: number | null; durata_max_weekend_min: number | null },
+  duration: number,
+  isHard: boolean,
+  minGapDays: number
+): DayKey | null {
+  const fromToday = DAY_KEYS.slice(dayIndex(today)); // oggi → domenica
+  for (const d of fromToday) {
+    if (d === sourceDay) continue;
+    if (!availableDays.has(d)) continue;
+    const slot = week.get(d);
+    if (!slot) continue;
+    // Non sovrascrivere una dura già pianificata né un giorno bloccato dall'utente.
+    if (!slot.rest && slot.is_hard) continue;
+    if (slot.blocked_by_user === true) continue;
+    // Oggi: ammesso per una dura solo se sei pronto (spec D).
+    if (d === today && isHard && todayReadiness !== "GO") continue;
+    // 48h dalle altre dure.
+    if (isHard) {
+      const otherHardDays = DAY_KEYS.filter(
+        (h) => h !== sourceDay && h !== d && (week.get(h)?.is_hard ?? false)
+      );
+      if (!respects48h(d, otherHardDays, minGapDays)) continue;
+    }
+    // Cap di durata.
+    const cap = capForDay(d, dossier);
+    if (cap != null && duration > cap) continue;
+    return d;
+  }
+  return null;
+}
+
+/**
+ * Recupera una seduta SALTATA in modo READINESS-AWARE.
+ *
+ * Non incastra la dura su "oggi" a forza: se oggi non sei pronto (MODIFY/SKIP),
+ * propone il giorno migliore della settimana e tiene oggi facile, avvisando del
+ * rischio. L'utente resta libero di forzare oggi (eventualmente in versione più
+ * breve/facile) con `forceDay` + `downgrade`. La seduta sorgente NON viene
+ * distrutta finché il recupero non è effettivamente applicato.
+ *
+ * @param currentPlan    Settimana corrente (7 sessioni).
+ * @param sourceDay      Giorno della seduta saltata (passato).
+ * @param today          Giorno odierno.
+ * @param todayReadiness Readiness di oggi (GO/MODIFY/SKIP).
+ * @param availableDays  Giorni allenabili (da dossier).
+ * @param dossier        Cap di durata.
+ * @param minGapDays     Gap minimo tra dure (2 di norma, 1 con eccezione §3.1).
+ * @param opts.forceDay  Giorno forzato dall'utente (override del suggerimento).
+ * @param opts.downgrade Applica la versione facile (fatigue alternative).
+ */
+export function recoverMissedSession(
+  currentPlan: BuiltSession[],
+  sourceDay: DayKey,
+  today: DayKey,
+  todayReadiness: Readiness,
+  availableDays: DayKey[],
+  dossier: { durata_max_weekday_min: number | null; durata_max_weekend_min: number | null },
+  minGapDays = 2,
+  opts: { forceDay?: DayKey; downgrade?: boolean } = {}
+): RecoverResult {
+  const week = new Map<DayKey, BuiltSession>();
+  for (const s of currentPlan) week.set(s.day as DayKey, s);
+  const available = new Set(availableDays);
+
+  const source = week.get(sourceDay);
+
+  const base = (): Omit<RecoverResult, "blocked_reason" | "recovered" | "explanation"> => ({
+    new_week: DAY_KEYS.map((d) => week.get(d)).filter(Boolean) as BuiltSession[],
+    changes: [],
+    suggested_day: null,
+    risk_warning: null,
+    downgraded: false,
+  });
+  const reject = (reason: string): RecoverResult => ({
+    ...base(),
+    changes: [{ day: sourceDay, action: "kept", reason }],
+    recovered: false,
+    blocked_reason: reason,
+    explanation: reason,
+  });
+
+  if (!source || source.rest) {
+    return reject(`Nessuna seduta da recuperare in ${DAY_LABELS[sourceDay]}.`);
+  }
+
+  const duration = source.estimated_duration_min ?? 60;
+  const isHard = source.is_hard;
+
+  // Giorno migliore secondo readiness/48h/cap (può essere oggi o un futuro).
+  const suggested = findBestRecoveryDay(
+    week, sourceDay, today, todayReadiness, available, dossier, duration, isHard, minGapDays
+  );
+
+  // Giorno effettivo: quello forzato dall'utente (se passato), altrimenti il suggerito.
+  const targetDay = opts.forceDay ?? suggested;
+
+  if (!targetDay) {
+    return reject(
+      "Nessun giorno valido per recuperare questa seduta dura senza violare 48h, " +
+        "cap di durata o readiness. Va bene così: questa settimana resta a volume ridotto."
+    );
+  }
+
+  const target = week.get(targetDay);
+  if (!target) {
+    return reject(`Giorno di destinazione (${DAY_LABELS[targetDay]}) non valido.`);
+  }
+  if (targetDay === sourceDay) {
+    return reject("Il giorno di destinazione coincide con quello della seduta saltata.");
+  }
+
+  // Avviso di rischio: si sta mettendo una dura OGGI mentre non sei pronto.
+  let riskWarning: string | null = null;
+  if (isHard && targetDay === today && todayReadiness !== "GO") {
+    const better = suggested && suggested !== today ? DAY_LABELS[suggested] : null;
+    riskWarning =
+      `Oggi la tua prontezza è ${todayReadiness}: una seduta dura non è l'ideale. ` +
+      (better
+        ? `Consiglio: oggi facile e recupera la dura ${better}, recuperi meglio. `
+        : "") +
+      "Se vuoi farla comunque oggi, valuta una versione più breve o facile.";
+  }
+
+  // ─── Validazioni hard sul target effettivo (anche se forzato) ─────────────
+  if (!target.rest && target.is_hard) {
+    return reject(
+      `${DAY_LABELS_CAPS[targetDay]} ha già una seduta dura: spostarla qui violerebbe il carico del giorno.`
+    );
+  }
+  if (isHard) {
+    const otherHardDays = DAY_KEYS.filter(
+      (d) => d !== sourceDay && d !== targetDay && (week.get(d)?.is_hard ?? false)
+    );
+    if (!respects48h(targetDay, otherHardDays, minGapDays)) {
+      return reject(
+        `Recuperare la seduta dura su ${DAY_LABELS[targetDay]} violerebbe il recupero minimo di 48h tra sedute dure (§3.1).`
+      );
+    }
+  }
+  const cap = capForDay(targetDay, dossier);
+  if (cap != null && duration > cap) {
+    return reject(
+      `La seduta (${duration}′) supera il tempo massimo disponibile di ${DAY_LABELS[targetDay]} (${cap}′).`
+    );
+  }
+
+  // ─── Downgrade opzionale alla versione facile (fatigue alternative) ────────
+  const downgraded =
+    opts.downgrade === true && source.fatigue_alternative_library_id != null;
+  const recoveredLibraryId = downgraded
+    ? source.fatigue_alternative_library_id!
+    : source.library_id;
+
+  // ─── Applica: sposta la seduta su targetDay, sourceDay → riposo ───────────
+  const changes: RedistributeChange[] = [];
+  if (!target.rest) {
+    changes.push({
+      day: targetDay,
+      action: "dropped",
+      reason: `Sessione di ${DAY_LABELS[targetDay]} rimossa per fare spazio alla seduta recuperata.`,
+    });
+  }
+
+  week.set(targetDay, {
+    ...source,
+    day: targetDay,
+    date: target.date,
+    rest: false,
+    // Pinnata: la rigenerazione non deve sovrascrivere la dura recuperata.
+    blocked_by_user: true,
+    is_hard: downgraded ? false : source.is_hard,
+    library_id: recoveredLibraryId,
+    title: rebuildTitle(source, targetDay),
+  });
+  week.set(
+    sourceDay,
+    makeRest(source, `Seduta recuperata su ${DAY_LABELS[targetDay]}.`)
+  );
+  changes.push({
+    day: sourceDay,
+    action: "moved",
+    from: sourceDay,
+    to: targetDay,
+    reason: `Seduta di ${DAY_LABELS[sourceDay]} recuperata su ${DAY_LABELS[targetDay]}${downgraded ? " (versione facile)" : ""}.`,
+  });
+
+  const name = recoveredLibraryId ?? "Sessione";
+  return {
+    new_week: DAY_KEYS.map((d) => week.get(d)).filter(Boolean) as BuiltSession[],
+    changes,
+    recovered: true,
+    blocked_reason: null,
+    suggested_day: suggested,
+    risk_warning: riskWarning,
+    downgraded,
+    explanation:
+      `${name} di ${DAY_LABELS[sourceDay]} recuperata su ${DAY_LABELS[targetDay]}` +
+      `${downgraded ? " in versione facile" : ""}, rispettando 48h e cap di durata.`,
+  };
 }
 
 function buildExplanation(

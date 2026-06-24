@@ -113,6 +113,7 @@ export function WeekGrid({
   lockedBefore,
   completionByDate = {},
   onBlockDay,
+  onRecoverDay,
 }: {
   sessions: BuiltSession[];
   todayKey: DayKey;
@@ -124,6 +125,8 @@ export function WeekGrid({
     { percent: number; label: string; source: "intervals" | "duration" }
   >;
   onBlockDay?: (date: string, day: DayKey) => void;
+  /** Recupera oggi una seduta dura saltata in un giorno passato. */
+  onRecoverDay?: (sourceDate: string, sourceDay: DayKey) => void;
 }) {
   const [expanded, setExpanded] = useState<DayKey | null>(null);
 
@@ -166,10 +169,16 @@ export function WeekGrid({
             isToday && todayReadiness && !isCompleted
               ? READINESS_BADGE[todayReadiness]
               : null;
-          const isLocked =
-            session.rest ||
-            (lockedBefore != null && session.date < lockedBefore);
+          const isPast = lockedBefore != null && session.date < lockedBefore;
+          const isLocked = session.rest || isPast;
           const canBlock = !isLocked && onBlockDay != null;
+          // Seduta dura saltata: passata, dura, non riposo, non completata.
+          const canRecover =
+            isPast &&
+            !session.rest &&
+            session.is_hard &&
+            !isCompleted &&
+            onRecoverDay != null;
 
           return (
             <div
@@ -299,6 +308,16 @@ export function WeekGrid({
                       className="mt-[13px] w-full rounded-xl border border-dashed border-ready-modify/50 bg-ready-modify/[0.06] px-3 py-2.5 text-[12.5px] font-semibold text-[#f0c878] transition-colors hover:bg-ready-modify/[0.10]"
                     >
                       Non posso allenarmi questo giorno
+                    </button>
+                  )}
+
+                  {canRecover && (
+                    <button
+                      type="button"
+                      onClick={() => onRecoverDay!(session.date, day)}
+                      className="mt-[13px] w-full rounded-xl border border-dashed border-brand/50 bg-brand/[0.08] px-3 py-2.5 text-[12.5px] font-semibold text-brand-hover transition-colors hover:bg-brand/[0.14]"
+                    >
+                      Recupera questa seduta oggi
                     </button>
                   )}
                 </div>

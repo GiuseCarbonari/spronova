@@ -26,6 +26,14 @@ interface PreviewResponse {
   volume_reduced?: boolean;
   explanation?: string;
   pushed_at_before?: string | null;
+  // Recupero seduta saltata:
+  kind?: "block" | "recover";
+  source_date?: string;
+  recovered?: boolean;
+  blocked_reason?: string | null;
+  suggested_day?: DayKey | null;
+  risk_warning?: string | null;
+  downgraded?: boolean;
 }
 
 const DAY_LABELS: Record<string, string> = {
@@ -119,26 +127,45 @@ export function RedistributeSection({
     }
   }
 
-  async function handleApply() {
-    if (!preview?.blocked_date) return;
+  async function handleRecoverDay(sourceDate: string, _day: DayKey) {
+    setLoadingDate(sourceDate);
+    setError(null);
+    setPreview(null);
+    setShowReconnectNote(false);
+    try {
+      const res = await fetch("/api/planner/recover?mode=preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source_date: sourceDate }),
+      });
+      const data = (await res.json().catch(() => null)) as PreviewResponse | null;
+      if (!res.ok || !data?.success) {
+        setError(data?.message ?? "Anteprima recupero non disponibile, riprova.");
+        return;
+      }
+      setPreview({ ...data, kind: "recover" });
+    } catch {
+      setError("Errore di rete, riprova.");
+    } finally {
+      setLoadingDate(null);
+    }
+  }
+
+  async function commit(body: Record<string, unknown>, url: string) {
     setCommitting(true);
     setError(null);
     try {
-      const res = await fetch("/api/planner/redistribute?mode=commit", {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          blocked_date: preview.blocked_date,
-          confirmed: true,
-        }),
+        body: JSON.stringify({ ...body, confirmed: true }),
       });
       const data = (await res.json().catch(() => null)) as PreviewResponse | null;
       if (!res.ok || !data?.success) {
         setError(data?.message ?? "Salvataggio non riuscito, riprova.");
         return;
       }
-      // Se la settimana era già stata pushata, avvisa di aggiornare Intervals.
-      if (preview.pushed_at_before) setShowReconnectNote(true);
+      if (preview?.pushed_at_before) setShowReconnectNote(true);
       setPreview(null);
       router.refresh();
     } catch {
@@ -146,6 +173,31 @@ export function RedistributeSection({
     } finally {
       setCommitting(false);
     }
+  }
+
+  /** Blocco giorno: applica la ridistribuzione. */
+  function handleApplyBlock() {
+    if (!preview?.blocked_date) return;
+    void commit(
+      { blocked_date: preview.blocked_date },
+      "/api/planner/redistribute?mode=commit"
+    );
+  }
+
+  /**
+   * Recupero. `forceToday` = forza oggi ignorando il suggerimento; `downgrade` =
+   * versione facile. Senza force, applica il giorno suggerito dal backend.
+   */
+  function handleApplyRecover(opts: { forceToday?: boolean; downgrade?: boolean } = {}) {
+    if (!preview?.source_date) return;
+    void commit(
+      {
+        source_date: preview.source_date,
+        ...(opts.forceToday ? { force_date: todayDate } : {}),
+        ...(opts.downgrade ? { downgrade: true } : {}),
+      },
+      "/api/planner/recover?mode=commit"
+    );
   }
 
   return (
@@ -161,6 +213,10 @@ export function RedistributeSection({
           onBlockDay={(date, day) => {
             if (loadingDate) return; // debounce
             void handleBlockDay(date, day);
+          }}
+          onRecoverDay={(date, day) => {
+            if (loadingDate) return; // debounce
+            void handleRecoverDay(date, day);
           }}
         />
       </div>
@@ -187,27 +243,48 @@ export function RedistributeSection({
       {/* Modale di anteprima / conferma */}
       {preview && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-base/90 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-base/80 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="redistribute-modal-title"
         >
-          <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl border border-border bg-surface">
+          <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl border border-border bg-surface shadow-2xl">
             <div className="border-b p-5">
               <h2
                 id="redistribute-modal-title"
                 className="text-lg font-semibold"
               >
-                Ecco come cambia la settimana
+                {preview.kind === "recover"
+                  ? "Recupera la seduta saltata"
+                  : "Ecco come cambia la settimana"}
               </h2>
-              <p className="mt-1 text-sm text-secondary">
-                Stai bloccando{" "}
-                <strong>
-                  {DAY_LABELS[preview.blocked_day ?? ""] ??
-                    preview.blocked_date}
-                </strong>{" "}
-                ({preview.blocked_date}).
-              </p>
+              {preview.kind === "recover" ? (
+                <p className="mt-1 text-sm text-secondary">
+                  Seduta saltata di{" "}
+                  <strong>
+                    {DAY_LABELS[
+                      sessions.find((s) => s.date === preview.source_date)?.day ?? ""
+                    ] ?? preview.source_date}
+                  </strong>
+                  {preview.suggested_day ? (
+                    <>
+                      . Giorno consigliato:{" "}
+                      <strong>{DAY_LABELS[preview.suggested_day]}</strong>.
+                    </>
+                  ) : (
+                    "."
+                  )}
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-secondary">
+                  Stai bloccando{" "}
+                  <strong>
+                    {DAY_LABELS[preview.blocked_day ?? ""] ??
+                      preview.blocked_date}
+                  </strong>{" "}
+                  ({preview.blocked_date}).
+                </p>
+              )}
             </div>
 
             <div className="space-y-2 overflow-y-auto p-5">
@@ -240,6 +317,13 @@ export function RedistributeSection({
                 </div>
               )}
 
+              {preview.kind === "recover" && preview.risk_warning && (
+                <div className="mt-3 rounded-[11px] border border-amber/40 bg-amber-dim p-3 text-sm text-secondary">
+                  <p className="font-medium text-amber">⚠ Recuperarla oggi è rischioso</p>
+                  <p className="mt-1">{preview.risk_warning}</p>
+                </div>
+              )}
+
               {error && (
                 <p className="rounded-[11px] border border-ready-skip-border bg-surface p-3 text-sm text-ready-skip">
                   {error}
@@ -247,7 +331,7 @@ export function RedistributeSection({
               )}
             </div>
 
-            <div className="flex justify-end gap-2 border-t p-4">
+            <div className="flex flex-col gap-2 border-t p-4 sm:flex-row sm:flex-wrap sm:justify-end">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -258,12 +342,45 @@ export function RedistributeSection({
               >
                 Annulla
               </Button>
-              <Button
-                onClick={() => void handleApply()}
-                disabled={committing}
-              >
-                {committing ? "Applico…" : "Applica"}
-              </Button>
+
+              {preview.kind === "recover" ? (
+                <>
+                  {/* Forza oggi (consapevole) — solo se oggi è rischioso */}
+                  {preview.risk_warning && (
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleApplyRecover({ forceToday: true, downgrade: true })}
+                        disabled={committing}
+                      >
+                        Oggi, versione facile
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleApplyRecover({ forceToday: true })}
+                        disabled={committing}
+                      >
+                        Oggi comunque
+                      </Button>
+                    </>
+                  )}
+                  {/* Azione consigliata: applica il giorno suggerito dal backend */}
+                  <Button
+                    onClick={() => handleApplyRecover()}
+                    disabled={committing}
+                  >
+                    {committing
+                      ? "Applico…"
+                      : preview.suggested_day
+                        ? `Sposta a ${DAY_LABELS[preview.suggested_day]}`
+                        : "Applica"}
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={handleApplyBlock} disabled={committing}>
+                  {committing ? "Applico…" : "Applica"}
+                </Button>
+              )}
             </div>
           </div>
         </div>

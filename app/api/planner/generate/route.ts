@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 
 import { generateWeekNarrative, isAIConfigured } from "@/lib/ai/provider";
 import type { MirrorData } from "@/lib/intervals/sync";
-import { buildWeek } from "@/lib/planner/build-week";
-import { detectPhase } from "@/lib/planner/phase-detector";
+import { buildWeek, type BuiltSession } from "@/lib/planner/build-week";
+import { detectPhase, type Phase } from "@/lib/planner/phase-detector";
+import { computeProgressionStateByFormat } from "@/lib/planner/progression";
+import {
+  computeMesocyclePosition,
+  countConsecutiveLoadingWeeks,
+} from "@/lib/planner/mesocycle";
 import {
   computeAvailableDays,
   selectWeekSessions,
@@ -28,6 +33,60 @@ export const dynamic = "force-dynamic";
 
 /** getDay() (0=Dom..6=Sab) → chiave giorno del planner. */
 const JS_DAY_TO_KEY: DayKey[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+/**
+ * Date (YYYY-MM-DD) delle sedute del piano esistente da PRESERVARE durante una
+ * rigenerazione: il lavoro già fatto e i giorni bloccati non vanno toccati.
+ *
+ * Una seduta è "locked" se:
+ *  - è nel passato (date < oggi): l'allenamento di lunedì già fatto, oppure il
+ *    riposo di martedì creato da una ridistribuzione → non si riprogramma il
+ *    passato;
+ *  - ha un'attività registrata su Intervals per quella data (completata);
+ *  - è un giorno bloccato dall'utente (blocked_by_user) ANCHE se ancora futuro:
+ *    "Non posso allenarmi questo giorno" è una scelta esplicita, non un riposo
+ *    qualsiasi da rigenerare.
+ *
+ * "Oggi" NON è mai locked (salvo blocco esplicito/completamento): è esattamente
+ * il giorno che la rigenerazione deve poter modificare (es. allenamento
+ * alleggerito per sonno scarso).
+ */
+function lockedDates(
+  existingSessions: BuiltSession[],
+  activities: MirrorData["activities_90d"],
+  todayIso: string
+): Set<string> {
+  const completed = new Set(
+    activities
+      .filter((a) => a.moving_time != null && a.moving_time > 0)
+      .map((a) => a.start_date_local.slice(0, 10))
+  );
+  const locked = new Set<string>();
+  for (const s of existingSessions) {
+    if (s.date < todayIso || completed.has(s.date) || s.blocked_by_user === true) {
+      locked.add(s.date);
+    }
+  }
+  return locked;
+}
+
+/**
+ * Compliance 0–100 per data, dalle attività Intervals (gate progressione §5.2).
+ * Normalizza i valori 0–1 in 0–100 e tiene il massimo per data.
+ */
+function buildComplianceByDate(
+  activities: MirrorData["activities_90d"]
+): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const a of activities) {
+    if (a.compliance == null || !Number.isFinite(a.compliance)) continue;
+    const pct = a.compliance <= 1 ? a.compliance * 100 : a.compliance;
+    const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+    const date = a.start_date_local.slice(0, 10);
+    if (result[date] == null || clamped > result[date]) result[date] = clamped;
+  }
+  return result;
+}
 
 /** Lunedì della settimana corrente, in data locale YYYY-MM-DD. */
 function currentMonday(): string {
@@ -97,6 +156,33 @@ export async function POST() {
     .limit(1)
     .maybeSingle();
 
+  // --- Piano esistente per questa settimana (per preservare i giorni locked) -
+  const weekStart = currentMonday();
+  const { data: existingPlanRow } = await supabase
+    .from("weekly_plans")
+    .select("sessions")
+    .eq("user_id", user.id)
+    .eq("week_start", weekStart)
+    .maybeSingle();
+  const existingSessions =
+    ((existingPlanRow?.sessions ?? null) as BuiltSession[] | null) ?? [];
+
+  // --- Storico piani precedenti (progressione §5.2 + mesociclo §4.2) --------
+  const { data: historyRows } = await supabase
+    .from("weekly_plans")
+    .select("week_start, phase, sessions, validation_metadata")
+    .eq("user_id", user.id)
+    .lt("week_start", weekStart)
+    .order("week_start", { ascending: false })
+    .limit(8);
+  const historyPlans = (historyRows ?? []) as Array<{
+    week_start: string;
+    phase: Phase;
+    sessions: BuiltSession[] | null;
+    validation_metadata: { is_deload?: boolean } | null;
+  }>;
+  const historicalSessions = historyPlans.flatMap((r) => r.sessions ?? []);
+
   const mirror = (snapshot?.mirror_data ?? null) as MirrorData | null;
   if (!mirror) {
     return NextResponse.json(
@@ -147,6 +233,30 @@ export async function POST() {
     .filter((l): l is string => typeof l === "string");
 
   const todayKey = JS_DAY_TO_KEY[new Date().getDay()];
+  const todayDate = new Date().toLocaleDateString("en-CA");
+
+  // --- Progressione §5.2 multi-vettore: stato per formato dallo storico ------
+  const complianceByDate = buildComplianceByDate(mirror.activities_90d ?? []);
+  const progressionByFormat = computeProgressionStateByFormat(
+    historicalSessions.map((s) => ({
+      date: s.date,
+      library_id: s.library_id,
+      progression_step: s.progression_step,
+      progression_state: s.progression_state,
+    })),
+    complianceByDate
+  );
+
+  // --- Mesociclo §4.1-4.2: posizione nel blocco 3:1 + traiettoria volume ----
+  const loadingWeeks = countConsecutiveLoadingWeeks(
+    historyPlans.map((p) => ({
+      week_start: p.week_start,
+      phase: p.phase,
+      is_deload: p.validation_metadata?.is_deload ?? false,
+    })),
+    phaseResult.phase
+  );
+  const mesocycle = computeMesocyclePosition(loadingWeeks, phaseResult.phase);
 
   // --- Selezione + costruzione ----------------------------------------------
   const selected = selectWeekSessions(
@@ -154,15 +264,33 @@ export async function POST() {
     dossier,
     { decision: readinessDecision, dayKey: todayKey, tsb, ri },
     { levers },
-    availableDays
+    availableDays,
+    progressionByFormat,
+    { volume_factor: mesocycle.volume_factor, is_deload: mesocycle.is_deload }
   );
 
-  const weekStart = currentMonday();
   const week = buildWeek(weekStart, selected, dossier, profile, phaseResult.phase, {
     tsb,
     ri,
     data_age_hours: dataAgeHours,
   });
+
+  // --- Preserva i giorni locked (lavoro fatto + giorni bloccati) -------------
+  // La rigenerazione NON deve sovrascrivere il passato né i riposi creati da una
+  // ridistribuzione: per ogni data locked nel piano esistente, si tiene la
+  // seduta originale invece di quella appena costruita.
+  const locked = lockedDates(existingSessions, mirror.activities_90d ?? [], todayDate);
+  let preservedCount = 0;
+  if (locked.size > 0) {
+    const existingByDate = new Map(existingSessions.map((s) => [s.date, s]));
+    week.sessions = week.sessions.map((s) => {
+      if (!locked.has(s.date)) return s;
+      const original = existingByDate.get(s.date);
+      if (!original) return s;
+      preservedCount++;
+      return original;
+    });
+  }
 
   // --- Narrativa AI opzionale (solo spiegazione) ----------------------------
   let narrative: string | null = null;
@@ -211,6 +339,11 @@ export async function POST() {
           phase_reason: phaseResult.reason,
           phase_reason_code: phaseResult.reason_code,
           days_to_event: daysToEvent,
+          // Mesociclo §4.2: serve alla settimana successiva per il conteggio 3:1.
+          week_in_block: mesocycle.week_in_block,
+          is_deload: mesocycle.is_deload,
+          volume_factor: mesocycle.volume_factor,
+          mesocycle_reason: mesocycle.reason,
           generated_at: generatedAt,
         },
         generated_at: generatedAt,
@@ -226,8 +359,10 @@ export async function POST() {
   }
 
   // Una riga coach_decisions per ogni seduta (non i riposi) — audit §11C.
+  // I giorni locked sono stati registrati alla loro generazione originale: non
+  // li si re-inserisce ad ogni rigenerazione.
   const decisionRows = week.sessions
-    .filter((s) => !s.rest && s.library_id != null)
+    .filter((s) => !s.rest && s.library_id != null && !locked.has(s.date))
     .map((s) => ({
       user_id: user.id,
       date: s.date,
@@ -270,6 +405,14 @@ export async function POST() {
     },
   });
 
+  const preservedNote =
+    preservedCount > 0
+      ? `${preservedCount} giorn${preservedCount === 1 ? "o" : "i"} mantenut${preservedCount === 1 ? "o" : "i"}: ` +
+        "il lavoro già fatto e i giorni bloccati non sono stati toccati."
+      : null;
+  const warning =
+    [preservedNote, decisionsWarning].filter(Boolean).join(" ") || null;
+
   return NextResponse.json({
     success: true,
     phase: phaseResult.phase,
@@ -279,6 +422,7 @@ export async function POST() {
     week_sessions: week.sessions,
     audit: week.audit,
     narrative,
-    warning: decisionsWarning,
+    preserved_days: preservedCount,
+    warning,
   });
 }
