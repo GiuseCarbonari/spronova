@@ -19,6 +19,9 @@ export const GLOSSARY: Record<string, string> = {
 
   cp: "La potenza che puoi sostenere a lungo senza affondare. È la soglia sopra la quale la fatica diventa rapidamente insostenibile. Indicatore chiave della tua capacità aerobica. Più è alta (in rapporto al peso), più reggi ritmi alti in salita e nelle lunghe. Calcolata da Intervals.icu col modello Morton 3P.",
 
+  cp_powerlaw:
+    "La stessa soglia stimata con un modello diverso, la power-law (quella usata anche da strumenti come AnalyzeMe). Il modello principale (Morton 3P di Intervals) include anche gli sprint e tende ad abbassare la soglia se la tua punta esplosiva è molto alta; la power-law pesa soprattutto gli sforzi da 5 a 60 minuti. Quando i due numeri divergono, quello più vicino alle tue uscite lunghe reali è di solito la power-law.",
+
   wprime:
     "La tua \"batteria\" anaerobica. L'energia totale che puoi spendere sopra la CP prima di esaurirti — negli scatti, negli sforzi brevi e intensi. Si misura in kilojoule (kJ). Una W′ alta significa che puoi fare più scatti, o scatti più potenti, prima di \"andare in debito\".",
 

@@ -159,6 +159,7 @@ export function ProfileTabs({
                     {PHENOTYPE_LABEL[profile.phenotype.primary] ??
                       profile.phenotype.primary}
                   </p>
+                  <PowerLawCompare cpw={cpw} powerLaw={profile.cp_power_law} />
                 </div>
               ) : (
                 <div className="rounded-[18px] border border-border bg-surface px-5 py-8 text-center text-sm text-muted">
@@ -401,6 +402,49 @@ export function ProfileTabs({
         </>
       )}
     </>
+  );
+}
+
+/**
+ * Mostra il CP del modello power-law accanto a quello principale (Morton 3P)
+ * SOLO quando i due divergono in modo percepibile (≥3%): sotto questa soglia
+ * i modelli concordano e una seconda cifra confonderebbe. Spiega perché
+ * strumenti come AnalyzeMe riportano una soglia diversa (vedi glossario
+ * `cp_powerlaw`).
+ */
+function PowerLawCompare({
+  cpw,
+  powerLaw,
+}: {
+  cpw: ProfileTabsProps["cpw"];
+  powerLaw: AthleteProfileData["cp_power_law"];
+}) {
+  if (!cpw || !powerLaw || cpw.cp_w <= 0) return null;
+  const divergence = Math.abs(powerLaw.cp_w - cpw.cp_w) / cpw.cp_w;
+  if (divergence < 0.03) return null;
+
+  const higher = powerLaw.cp_w > cpw.cp_w;
+  return (
+    <div className="mt-3 flex items-center gap-2 border-t border-border/60 pt-3">
+      <span className="text-[10.5px] uppercase tracking-[0.12em] text-muted">
+        Power-law
+      </span>
+      <span className="font-serif text-[18px] font-medium tabular-nums text-foreground">
+        {Math.round(powerLaw.cp_w)} W
+      </span>
+      {powerLaw.cp_wkg != null && (
+        <span className="text-[12px] text-muted">
+          {powerLaw.cp_wkg.toFixed(2)} W/kg
+        </span>
+      )}
+      <span
+        className={`text-[12px] ${higher ? "text-ready-go" : "text-ready-modify"}`}
+        aria-hidden
+      >
+        {higher ? "↗" : "↘"}
+      </span>
+      <InfoTooltip term="cp_powerlaw" />
+    </div>
   );
 }
 
