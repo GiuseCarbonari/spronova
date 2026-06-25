@@ -52,6 +52,15 @@ export function AthleteSummary({
   aiCommentAt: string | null;
 }) {
   const cp = profile.cp_wprime;
+  const cpPowerLaw = profile.cp_power_law;
+  // Mostriamo il confronto col modello power-law solo quando diverge in modo
+  // percepibile (≥3%): sotto questa soglia i due modelli concordano e una
+  // seconda cifra confonderebbe invece di informare.
+  const cpDivergence =
+    cp && cpPowerLaw && cp.cp_w > 0
+      ? Math.abs(cpPowerLaw.cp_w - cp.cp_w) / cp.cp_w
+      : 0;
+  const showPowerLaw = cpDivergence >= 0.03;
   const phenotype = profile.phenotype;
   const secondary = phenotype.secondary
     ? phenotypeLabels[phenotype.secondary]
@@ -105,7 +114,32 @@ export function AthleteSummary({
       <MetricStrip columns={4} className="mt-7">
         <MetricStat
           {...PROFILE_METRIC_COPY.cp}
+          tooltip={
+            showPowerLaw
+              ? PROFILE_METRIC_COPY.cpPowerLaw.tooltip
+              : PROFILE_METRIC_COPY.cp.tooltip
+          }
           value={cp ? `${cp.cp_w} W` : "—"}
+          status={
+            showPowerLaw && cpPowerLaw
+              ? `Power-law: ${cpPowerLaw.cp_w} W`
+              : undefined
+          }
+          direction={
+            showPowerLaw && cpPowerLaw && cpPowerLaw.cp_w > (cp?.cp_w ?? 0)
+              ? "up"
+              : showPowerLaw && cpPowerLaw
+                ? "down"
+                : undefined
+          }
+          footer={
+            showPowerLaw && cpPowerLaw ? (
+              <p className="mt-2 text-[11px] leading-relaxed text-faint">
+                Modello alternativo sugli stessi dati. Premi «?» per capire
+                quale usare.
+              </p>
+            ) : undefined
+          }
         />
         <MetricStat
           {...PROFILE_METRIC_COPY.wkg}

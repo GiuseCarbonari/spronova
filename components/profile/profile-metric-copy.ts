@@ -5,6 +5,12 @@ export const PROFILE_METRIC_COPY = {
     tooltip:
       "La potenza che riesci a tenere a lungo senza crollare. È il miglior indicatore della tua capacità di reggere ritmi alti in salita e nelle uscite lunghe.",
   },
+  cpPowerLaw: {
+    label: "Soglia (Power-law)",
+    acronym: "CP",
+    tooltip:
+      "La stessa soglia stimata con un modello diverso (power-law), quello usato anche da strumenti come AnalyzeMe. Mentre il modello principale (Morton 3P di Intervals) include anche gli sprint e tende ad abbassare la soglia se la tua punta esplosiva è molto alta, la power-law pesa soprattutto gli sforzi da 5 a 60 minuti. Quando i due numeri divergono, quello più vicino alle tue uscite lunghe reali è di solito la power-law.",
+  },
   wkg: {
     label: "Potenza per chilo",
     acronym: "W/kg",

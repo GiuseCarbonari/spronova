@@ -1,4 +1,4 @@
-export const APP_VERSION = "1.3.0";
+export const APP_VERSION = "1.4.0";
 
 export interface ChangelogEntry {
   version: string;
@@ -8,6 +8,21 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.4.0",
+    date: "25 giu 2026",
+    title: "Soglia: secondo modello a confronto",
+    items: [
+      {
+        type: "new",
+        text: "Nella scheda atleta, accanto alla tua potenza di soglia (CP) ora compare la stima di un secondo modello (power-law), quello usato anche da strumenti come AnalyzeMe — appare solo quando i due numeri differiscono in modo percepibile",
+      },
+      {
+        type: "improve",
+        text: "Quando i modelli divergono, il tooltip «?» spiega quale guardare: il modello principale può abbassare la soglia se hai uno sprint molto forte, mentre la power-law pesa di più gli sforzi da 5 a 60 minuti",
+      },
+    ],
+  },
   {
     version: "1.3.0",
     date: "24 giu 2026",

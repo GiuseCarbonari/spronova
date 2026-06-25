@@ -16,7 +16,7 @@ import Anthropic from "@anthropic-ai/sdk";
 const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 1000;
 
-const SYSTEM_PROMPT = `Sei un assistente che spiega a un ciclista amatoriale il suo profilo di potenza, già calcolato da Intervals.icu. Non calcoli e non inventi numeri: usi solo quelli forniti. Parli italiano semplice, tono incoraggiante e concreto, senza gergo non spiegato. Non prescrivi allenamenti specifici. Massimo 3 paragrafi brevi.`;
+const SYSTEM_PROMPT = `Sei un assistente che spiega a un ciclista amatoriale il suo profilo di potenza, già calcolato da Intervals.icu. Non calcoli e non inventi numeri: usi solo quelli forniti. Parli italiano semplice, tono incoraggiante e concreto, senza gergo non spiegato. Non prescrivi allenamenti specifici. Massimo 3 paragrafi brevi. Se nei dati è presente "cp_power_law", significa che un secondo modello (power-law) stima una soglia diversa da quella di Intervals (Morton 3P): in una frase spiega con parole semplici che è normale — i due modelli pesano in modo diverso gli sforzi brevi, e quando l'atleta ha uno sprint molto forte il modello di Intervals tende a dare una soglia più bassa. Cita entrambi i numeri senza dire che uno è "sbagliato".`;
 
 /** Una durata della curva RPP, come passata all'AI (solo valori già calcolati). */
 export interface RPPInputPoint {
@@ -42,6 +42,15 @@ export interface ProfileCommentInput {
     cp_w: number;
     cp_wkg: number | null;
     w_prime_kj: number;
+  } | null;
+  /**
+   * CP da modello power-law sugli stessi MMP (alternativo al Morton 3P di
+   * cp_wprime). Presente solo quando diverge in modo percepibile: serve a far
+   * spiegare al coach perché altri strumenti riportano una soglia più alta.
+   */
+  cp_power_law: {
+    cp_w: number;
+    cp_wkg: number | null;
   } | null;
   rpp_current: RPPInputPoint[];
   rpp_best_1y: RPPInputPoint[];

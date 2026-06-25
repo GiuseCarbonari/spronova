@@ -1,6 +1,6 @@
 {
   "name": "curveload",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "description": "CurveLoad — implementazione web multi-utente del protocollo Section 11, con Intervals.icu come fonte dati.",
   "scripts": {

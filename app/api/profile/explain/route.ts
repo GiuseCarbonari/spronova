@@ -68,6 +68,23 @@ function buildCommentInput(profile: AthleteProfileData): ProfileCommentInput {
           w_prime_kj: Number(profile.cp_wprime.w_prime_kj.toFixed(1)),
         }
       : null,
+    // Power-law solo se diverge ≥3% dal Morton (sotto è rumore): allineato
+    // alla soglia di visualizzazione in athlete-summary.tsx.
+    cp_power_law:
+      profile.cp_power_law &&
+      profile.cp_wprime &&
+      profile.cp_wprime.cp_w > 0 &&
+      Math.abs(profile.cp_power_law.cp_w - profile.cp_wprime.cp_w) /
+        profile.cp_wprime.cp_w >=
+        0.03
+        ? {
+            cp_w: Math.round(profile.cp_power_law.cp_w),
+            cp_wkg:
+              profile.cp_power_law.cp_wkg != null
+                ? Number(profile.cp_power_law.cp_wkg.toFixed(2))
+                : null,
+          }
+        : null,
     rpp_current: rppCurrent,
     rpp_best_1y: rppBest1y,
     weight_kg: profile.weight_kg,

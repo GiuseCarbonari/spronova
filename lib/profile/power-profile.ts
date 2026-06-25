@@ -172,6 +172,96 @@ export function extractCPW(curve: PowerCurve): CPWResult | null {
   return null;
 }
 
+// --- b2) estimatePowerLawCP (modello alternativo, dichiarato) ----------------
+
+export interface PowerLawCPResult {
+  /** CP stimato dal modello power-law sulle durate aerobiche. */
+  cp: number;
+  /** W′ derivato dallo scostamento delle durate brevi dal plateau power-law. */
+  wPrime: number;
+  /** Coefficiente di scala S della power-law: P(t) = S · t^(E−1). */
+  s: number;
+  /** Esponente di resistenza E (Power Law Exponent). */
+  e: number;
+  /** Durate (secondi) usate nel fit, per audit. */
+  fit_secs: number[];
+  model: "POWER_LAW";
+  source: "app_powerlaw_fit";
+}
+
+/**
+ * Stima CP/W′ con un modello POWER-LAW sui MMP che Intervals fornisce — è un
+ * modello ALTERNATIVO a Morton 3P, dichiarato come tale, non una correzione
+ * "nascosta" del valore di Intervals (la regola No Virtual Math vale per
+ * cp_wprime, che resta il dato letto). Serve a spiegare all'atleta perché
+ * strumenti come AnalyzeMe riportano una CP più alta: la power-law pesa le
+ * durate aerobiche (5–60 min) e ignora l'effetto del terzo parametro di
+ * Morton, che con sprint molto forti abbassa l'asintoto (vedi report utente:
+ * Morton 199 W vs power-law 221 W sugli stessi MMP).
+ *
+ * Metodo: regressione lineare di ln(P) su ln(t) sui punti aerobici → S, E.
+ * La CP è la potenza power-law a 1200 s (20 min), proxy classico del CP
+ * "funzionale" (test da 20′): è la durata in cui la power-law degli atleti
+ * stabilizza la stima della soglia e riproduce i valori di AnalyzeMe (≈221 W
+ * sul report utente). W′ è l'energia media sopra la CP misurata sui punti
+ * brevi (lo scarto MMP − CP integrato sulla durata). Tutto deterministico.
+ */
+const POWER_LAW_FIT_SECS = [300, 600, 1200, 1800, 3600] as const;
+const POWER_LAW_CP_SECS = 1200; // CP funzionale = potenza power-law a 20 min
+
+export function estimatePowerLawCP(mmp: MMPPoint[]): PowerLawCPResult | null {
+  // Punti aerobici realmente presenti (watts non nullo). Servono ≥3 per un
+  // fit log-log stabile; con meno la stima sarebbe arbitraria.
+  const points: { t: number; w: number }[] = [];
+  for (const secs of POWER_LAW_FIT_SECS) {
+    const p = mmp.find((m) => m.duration_s === secs);
+    if (p?.watts != null && p.watts > 0) {
+      points.push({ t: secs, w: p.watts });
+    }
+  }
+
+  if (points.length < 3) return null;
+
+  // Regressione ln(P) = ln(S) + (E−1)·ln(t).
+  const xs = points.map((p) => Math.log(p.t));
+  const ys = points.map((p) => Math.log(p.w));
+  const n = xs.length;
+  const sx = xs.reduce((a, b) => a + b, 0);
+  const sy = ys.reduce((a, b) => a + b, 0);
+  const sxx = xs.reduce((a, x) => a + x * x, 0);
+  const sxy = xs.reduce((a, x, i) => a + x * ys[i], 0);
+  const denom = n * sxx - sx * sx;
+  if (denom === 0) return null;
+
+  const slope = (n * sxy - sx * sy) / denom; // = E − 1
+  const intercept = (sy - slope * sx) / n; // = ln(S)
+  const s = Math.exp(intercept);
+  const e = slope + 1;
+  const cp = s * Math.pow(POWER_LAW_CP_SECS, e - 1);
+  if (!Number.isFinite(cp) || cp <= 0) return null;
+
+  // W′ ≈ energia media sopra la CP sulle durate brevi/medie disponibili: per
+  // ogni punto con MMP > CP, (MMP − CP)·t è il lavoro anaerobico speso; la
+  // media sui punti dà una stima robusta della capacità W′.
+  const wPrimeSamples = mmp
+    .filter((p) => p.watts != null && p.watts > cp && p.duration_s <= 600)
+    .map((p) => (p.watts! - cp) * p.duration_s);
+  const wPrime =
+    wPrimeSamples.length > 0
+      ? wPrimeSamples.reduce((a, b) => a + b, 0) / wPrimeSamples.length
+      : 0;
+
+  return {
+    cp: Math.round(cp),
+    wPrime: Math.round(wPrime),
+    s: Math.round(s),
+    e: Math.round(e * 10000) / 10000,
+    fit_secs: points.map((p) => p.t),
+    model: "POWER_LAW",
+    source: "app_powerlaw_fit",
+  };
+}
+
 // --- c) computeAPR (variante MPR, PRD §33 C.3) -------------------------------
 
 export interface APRResult {

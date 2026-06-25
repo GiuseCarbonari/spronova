@@ -5,6 +5,7 @@ import { buildAthleteProfile } from "../lib/profile/build-profile";
 import {
   classifyPhenotype,
   computeAPR,
+  estimatePowerLawCP,
   extractCPW,
   extractMMP,
   type PowerCurve,
@@ -120,6 +121,34 @@ test("computeAPR: fallback MMP 1s se pMax assente", () => {
   assert.equal(apr.msp, 965); // MMP a 1s
 });
 
+test("estimatePowerLawCP: riproduce il report utente (MMP reali → CP ≈ 221)", () => {
+  // MMP reali dal report AnalyzeMe dell'utente (durate aerobiche).
+  const reportSecs = [60, 120, 300, 600, 1200, 1800, 3600];
+  const reportVals = [441, 344, 279, 279, 241, 213, 192];
+  const reportCurve = curve("90d", {
+    secs: reportSecs,
+    values: reportVals,
+    watts_per_kg: reportVals.map((w) => Math.round((w / WEIGHT) * 100) / 100),
+  });
+  const mmp = extractMMP(reportCurve, reportSecs);
+  const pl = estimatePowerLawCP(mmp);
+  assert.ok(pl);
+  // La power-law a 20 min sui MMP reali cade nel range del report (≈221 W),
+  // ben sopra il Morton 3P di Intervals (≈199 W sullo stesso atleta).
+  assert.ok(pl.cp >= 215 && pl.cp <= 240, `CP power-law fuori range: ${pl.cp}`);
+  assert.equal(pl.model, "POWER_LAW");
+  assert.equal(pl.source, "app_powerlaw_fit");
+  assert.ok(pl.e > 0 && pl.e < 1, `E fuori range fisiologico: ${pl.e}`);
+});
+
+test("estimatePowerLawCP: null con meno di 3 punti aerobici", () => {
+  const sparse = extractMMP(
+    curve("90d", { secs: [300, 600], values: [280, 262], watts_per_kg: [3.6, 3.4] }),
+    [300, 600]
+  );
+  assert.equal(estimatePowerLawCP(sparse), null);
+});
+
 test("classifyPhenotype: deterministico sulla fixture (diesel + punta esplosiva)", () => {
   const mmp = extractMMP(curve("90d"));
   const cpWkg = 238 / WEIGHT; // 3.09
@@ -161,6 +190,13 @@ test("buildAthleteProfile: integrazione completa sui dati reali", () => {
   assert.equal(profile.cp_wprime?.w_prime_kj, 21.351);
   assert.equal(profile.cp_wprime?.p_max_w, 965);
   assert.ok(Math.abs((profile.cp_wprime?.cp_wkg ?? 0) - 238 / 76.5) < 0.01);
+
+  // CP power-law: modello alternativo presente, calcolato sugli stessi MMP.
+  assert.ok(profile.cp_power_law);
+  assert.equal(profile.cp_power_law?.model, "POWER_LAW");
+  assert.ok((profile.cp_power_law?.cp_w ?? 0) > 0);
+  // cp_wprime resta il dato LETTO da Intervals (regola No Virtual Math).
+  assert.equal(profile.cp_wprime?.cp_w, 238);
 
   // APR coerente.
   assert.equal(profile.apr?.apr, 727);

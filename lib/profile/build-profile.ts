@@ -1,6 +1,7 @@
 import {
   classifyPhenotype,
   computeAPR,
+  estimatePowerLawCP,
   extractCPW,
   extractMMP,
   type APRResult,
@@ -54,6 +55,23 @@ export interface AthleteProfileData {
     model: "MORTON_3P" | "MS_2P" | "FFT_CURVES" | "ECP";
     source: string;
   } | null;
+  /**
+   * CP stimato dal modello POWER-LAW sugli stessi MMP (modello alternativo,
+   * dichiarato). Spiega perché strumenti come AnalyzeMe riportano una soglia
+   * più alta del Morton 3P di Intervals: la power-law pesa le durate aerobiche
+   * e non risente del terzo parametro di Morton, che con sprint forti abbassa
+   * l'asintoto. Mostrato accanto a cp_wprime, non lo sostituisce.
+   */
+  cp_power_law: {
+    cp_w: number;
+    cp_wkg: number | null;
+    w_prime_j: number;
+    w_prime_kj: number;
+    power_law_s: number;
+    power_law_e: number;
+    model: "POWER_LAW";
+    source: string;
+  } | null;
   apr: APRResult | null;
   phenotype: PhenotypeResult;
   vo2max_5m: number | null;
@@ -105,6 +123,14 @@ export function buildAthleteProfile(
   const apr = computeAPR(mmp90, cpw?.cp ?? null, cpw?.pMax ?? null);
   const phenotype = classifyPhenotype(mmp90, apr?.apr_ratio ?? null, cpWkg);
 
+  // Modello alternativo power-law: stima indipendente dal Morton di Intervals,
+  // calcolata sugli stessi MMP per il confronto in scheda (vedi tipo sopra).
+  const powerLaw = estimatePowerLawCP(mmp90);
+  const powerLawWkg =
+    powerLaw != null && weightKg != null && weightKg > 0
+      ? powerLaw.cp / weightKg
+      : null;
+
   const rpp: RPPEntry[] = mmp90.map((point) => {
     const ref = mmp1y.find((p) => p.duration_s === point.duration_s);
     return {
@@ -143,6 +169,18 @@ export function buildAthleteProfile(
           ftp_model_w: cpw.ftp,
           model: cpw.model,
           source: cpw.source,
+        }
+      : null,
+    cp_power_law: powerLaw
+      ? {
+          cp_w: powerLaw.cp,
+          cp_wkg: powerLawWkg,
+          w_prime_j: powerLaw.wPrime,
+          w_prime_kj: powerLaw.wPrime / 1000,
+          power_law_s: powerLaw.s,
+          power_law_e: powerLaw.e,
+          model: powerLaw.model,
+          source: powerLaw.source,
         }
       : null,
     apr,
