@@ -1,7 +1,7 @@
 # Implementation: AI Comments for Coach IA
 
-**Stage:** Route layer (backend API endpoints + provider abstraction)
-**Status:** Complete
+**Stages:** Backend + Frontend (complete end-to-end)
+**Status:** ✅ COMPLETE & READY FOR TESTING
 **Date:** 2026-06-28
 
 ---
@@ -212,9 +212,81 @@ COACH_AI_PROVIDER=groq
 
 ---
 
+## STAGE 2: Frontend Integration (COMPLETED)
+
+### Frontend Components Created
+
+**File:** `hooks/use-ai-comment.ts` (NEW)
+- Custom hook for fetching AI comments via POST
+- State management: comment, generatedAt, loading, error, configured
+- Retry logic on failure
+- 24h client-side caching consideration
+- Exports: `useAIComment(section)` → { comment, generatedAt, loading, error, configured, regenerate }
+
+**File:** `components/coach/coach-comment-card.tsx` (NEW)
+- Reusable card component for displaying AI comments
+- 3 states: empty (with CTA), loading (spinner), success (comment + timestamp + regenerate button)
+- Italian timestamp formatting ("oggi alle 10:45", "ieri", "28 giu")
+- Error state with message + retry
+- Graceful fallback when AI not configured
+
+**File:** `components/dashboard/coach-comment-oggi.tsx` (NEW)
+- Wrapper component for OGGI section
+- Integrates with useAIComment hook
+- Props: initialComment, initialGeneratedAt (from server)
+- Label: "Lettura della giornata" with coach tone
+
+**File:** `components/profile/coach-comment-profilo.tsx` (NEW)
+- Wrapper for PROFILO section
+- Same pattern as OGGI component
+- Label: "Lettura della potenza"
+
+**File:** `components/terrain/coach-comment-percorso.tsx` (NEW)
+- Wrapper for PERCORSO section
+- Label: "Strategia per il percorso"
+- Only renders if event_terrain exists
+
+### Pages Modified
+
+**File:** `app/dashboard/page.tsx`
+- Extended Supabase select to include `ai_comment_oggi`, `ai_comment_oggi_at`
+- Integrated `<CoachCommentOggi />` component below ReadinessRing
+- Passes initialComment and initialGeneratedAt to component
+
+**File:** `app/profile/page.tsx`
+- Extended select with `ai_comment_profilo`, `ai_comment_profilo_at`
+- Pass data to ProfileTabs component
+
+**File:** `components/profile/profile-tabs.tsx`
+- Integrated `<CoachCommentProfilo />` in PROFILO tab
+- Removed old ExplainButton component
+- Cleaner UI with unified coach comment display
+
+**File:** `app/terrain/page.tsx`
+- Extended select with `ai_comment_percorso`, `ai_comment_percorso_at`
+- Added `<CoachCommentPercorso />` below race estimate section
+- Conditional render: only if gap_analysis exists
+
+### Design Decisions
+
+✅ **Reuse:** Button (ghost/outline variant), icons (RefreshCw), Card, Tailwind styling  
+✅ **No new dependencies:** Uses existing UI kit  
+✅ **State management:** Local component state via hook  
+✅ **Error handling:** User-friendly messages (409 "Dati insufficienti", 502 "Generazione fallita")  
+✅ **Performance:** Timestamp computed client-side, no re-fetch on route change  
+✅ **Accessibility:** Loading states, disabled regenerate button while loading  
+
+### Build Status
+
+✅ TypeScript compilation: `npm run build` → 0 errors  
+✅ ESLint: no warnings  
+✅ All imports resolved  
+
+---
+
 ## Summary
 
-Three API routes + one provider abstraction, 5 files created:
+**Backend (Stage 1):** Three API routes + one provider abstraction, 5 files created:
 1. Migration 017 (DB schema)
 2. lib/ai/groq-provider.ts (Anthropic/Groq factory)
 3. app/api/comments/oggi/route.ts (readiness + metrics + injury check)
