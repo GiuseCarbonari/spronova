@@ -46,25 +46,15 @@ const MODEL_ANTHROPIC = "claude-sonnet-4-6";
 const MAX_TOKENS = 800;
 
 const SYSTEM_PROMPTS: Record<CommentSection, string> = {
-  oggi: `Sei un coach ciclismo che conosce l'atleta da anni.
-Guarda i dati OGGI (readiness, forma, freschezza, sonno, HRV, RHR, seduta prevista).
+  oggi: `Sei un coach ciclismo che conosce l'atleta da anni. Commenta lo stato OGGI in modo naturale e conversazionale, senza asterischi, numeri o elenchi. Parla come un amico esperto.
 
-ANALIZZA in questo ordine:
-1. **Readiness oggi:** Qual è lo stato? È un giorno GO/CAUTION/STOP? Perché (quali metriche lo dicono)?
-2. **Forma e freschezza:** CTL vs ATL → che tipo di forma è (acuta, cronaca, equilibrata)?
-3. **Segnali biologici:** HRV, RHR, sonno → cosa dicono sul recupero? Sono in linea con i trend 14gg?
-4. **Seduta prevista:** Se c'è una seduta, è giusta per questo stato?
-5. **Infortunio:** Se attivo, SOLO prescrizioni mediche e prudenza, zero workout.
+Guarda i dati: readiness (decision, confidence), forma (CTL), fatica (ATL), freschezza (TSB), HRV, RHR, sonno, trend 14gg di CTL/ATL/HRV, seduta prevista, infortunio.
 
-CONSIGLI CONCRETI (scegli quello rilevante):
-- Se readiness=GO: "Seduta hard possibile, vai al massimo in Z4. Monitora cadenza e pedalata."
-- Se readiness=CAUTION: "Fai la seduta ma monitora bene, pronto a scendere di intensità se necessario."
-- Se readiness=STOP: "Ascolta il corpo, magari aerobica leggera o riposo attivo. Recupera sonno."
-- Se HRV in calo: "RHR elevato e HRV basso. Dormi di più stasera, ripresa domani."
-- Se sonno <6h: "Priorità: recupera sonno prima di allenarmi di nuovo. Seduta breve oggi."
-- Se infortunio: "Attieniti al programma medico. Passeggiata leggera se prescritto, niente allenamento."
+Analizza il quadro completo: come sta davvero oggi? È un giorno di forma oppure di recupero? Cosa dicono i segnali biologici? L'HRV è stabile o scende? Il sonno è stato buono? La forma è in crescita o stabile? Come si posiziona la seduta di oggi rispetto a questo stato?
 
-TONO: Sei amico e mentore. Concreto, specifico, non ovvio. Max 200 parole. Italiano.`,
+Poi dai un consiglio pratico e personale: se readiness è GO, di' che può spingere; se CAUTION, avvertilo di stare attento; se STOP, suggerisci riposo. Se HRV scende o sonno è basso, menzioni il recupero. Se infortunio è attivo, SOLO prescrizioni mediche, zero workout.
+
+TONO: Amico mentore che conosce i dati. Naturale, discorsivo, non tecnico, no elenchi. Max 200 parole. Italiano.`,
   profilo: `Sei un coach che analizza il profilo di potenza di un atleta.
 
 ANALIZZA in questo ordine:
@@ -80,7 +70,7 @@ CONSIGLI CONCRETI (scegli quello rilevante):
 - Se sprinter puro: "Punti forti sui 30s–1min. Lavora su resistenza aerobica 4–6min per diventare più completo e versatile."
 - Se climber dominante: "Forte in montagna ma vulnerabile in pianura veloce. Sviluppa capacità anaerobica, 2x/settimana sprint brevi."
 
-TONO: Tecnico ma accessibile. Stai raccontando cosa significa il suo profilo e come migliorarlo. Max 180 parole. Italiano.`,
+TONO: Tecnico ma accessibile, naturale e discorsivo come un coach che parla all'atleta. Stai raccontando cosa significa il suo profilo e come migliorarlo. NIENTE asterischi, grassetto, titoli o elenchi puntati: solo prosa scorrevole. Max 180 parole. Italiano.`,
   percorso: `Sei un coach che prepara un atleta per una gara specifica.
 
 ANALIZZA in questo ordine:
@@ -97,7 +87,7 @@ CONSIGLI CONCRETI (adatta al percorso):
 - Esempio salite medie: "Gara di 3h con 1500m D+. Nutrizione: 2 barre energetiche + 2 gels + 500ml isotonica. Attaccate in discesa (vostro punto forte), non in salita."
 - Esempio montagna: "Gara di 5h in montagna. Voi siete all-rounder, altri sono specialisti. Gara tattica: stare con i gruppi in salita, attaccare quando loro calano. Recupero: riposo attivo 48h, reidratazione salata nei primi 30min."
 
-TONO: Tattico, specifico, confidente. Stai preparando l'atleta a gareggiare e vincere. Max 220 parole. Italiano.`,
+TONO: Tattico, specifico, confidente, naturale e discorsivo come un coach che parla all'atleta. Stai preparando l'atleta a gareggiare e vincere. NIENTE asterischi, grassetto, titoli o elenchi puntati: solo prosa scorrevole. Max 220 parole. Italiano.`,
 };
 
 async function generateCommentAnthropic(input: AICommentInput): Promise<AICommentOutput> {
@@ -118,11 +108,12 @@ async function generateCommentAnthropic(input: AICommentInput): Promise<AICommen
     ],
   });
 
-  const comment = response.content
-    .filter((block): block is Anthropic.TextBlock => block.type === "text")
-    .map((block) => block.text)
-    .join("\n")
-    .trim();
+  const comment = cleanComment(
+    response.content
+      .filter((block): block is Anthropic.TextBlock => block.type === "text")
+      .map((block) => block.text)
+      .join("\n")
+  );
 
   return {
     comment,
@@ -131,6 +122,18 @@ async function generateCommentAnthropic(input: AICommentInput): Promise<AICommen
       completion: response.usage?.output_tokens || 0,
     },
   };
+}
+
+/**
+ * Pulisce l'output: rimuove il blocco <think> dei reasoning model (qwen) e gli
+ * asterischi markdown (**bold**, * elenco) lasciando prosa naturale.
+ */
+function cleanComment(raw: string): string {
+  return raw
+    .replace(/<think>[\s\S]*?<\/think>/gi, "") // blocco reasoning
+    .replace(/^\s*<think>[\s\S]*/i, "") // <think> aperto senza chiusura
+    .replace(/\*+/g, "") // asterischi markdown
+    .trim();
 }
 
 // --- GROQ -----------------------------------------------------------------------
@@ -142,8 +145,12 @@ async function generateCommentGroq(input: AICommentInput): Promise<AICommentOutp
   const groq = new Groq({ apiKey });
 
   const response = await groq.chat.completions.create({
-    model: "openai/gpt-oss-120b",
+    model: "qwen/qwen3.6-27b",
     max_tokens: MAX_TOKENS,
+    // Spegne il reasoning: 'hidden' lo nasconde ma lo genera lo stesso,
+    // bruciando i token e svuotando il content. I commenti spiegano dati
+    // già calcolati, non serve. https://console.groq.com/docs/reasoning
+    reasoning_effort: "none",
     messages: [
       {
         role: "system",
@@ -156,7 +163,18 @@ async function generateCommentGroq(input: AICommentInput): Promise<AICommentOutp
     ],
   });
 
-  const comment = response.choices[0]?.message?.content || "";
+  if (!response.choices || response.choices.length === 0) {
+    throw new Error("GROQ_EMPTY_RESPONSE: no choices in response");
+  }
+
+  const raw = response.choices[0].message?.content;
+  if (!raw) {
+    throw new Error("GROQ_EMPTY_CONTENT: message content is empty");
+  }
+  if (response.choices[0].finish_reason === "length") {
+    console.warn(`Commento ${input.section} troncato da Groq (max_tokens raggiunto)`);
+  }
+  const comment = cleanComment(raw);
 
   return {
     comment,

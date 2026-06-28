@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 import { generateComment, isAIConfigured } from "@/lib/ai/groq-provider";
 import type { AthleteProfileData } from "@/lib/profile/build-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/comments/profilo
@@ -41,12 +41,14 @@ function compareRPPTrends(profile: AthleteProfileData) {
     });
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   if (!user) {
+    // No user found, returning 401. Use Supabase context for auth details.
     return NextResponse.json(
       { success: false, error: "unauthorized", message: "Non autenticato" },
       { status: 401 }

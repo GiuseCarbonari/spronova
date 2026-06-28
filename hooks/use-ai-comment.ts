@@ -36,9 +36,11 @@ export function useAIComment(
     setError(null);
 
     try {
+      // Fetch con credentials per passare cookies (Supabase auth token)
       const response = await fetch(`/api/comments/${section}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // Passa i cookie (incluso auth token)
       });
 
       const body = (await response.json().catch(() => null)) as {
@@ -68,10 +70,16 @@ export function useAIComment(
         return;
       }
 
-      if (body?.success && body?.comment && body?.generated_at) {
-        setComment(body.comment);
-        setGeneratedAt(body.generated_at);
-        setError(null);
+      if (body?.success === true) {
+        if (body?.comment && body?.generated_at) {
+          setComment(body.comment);
+          setGeneratedAt(body.generated_at);
+          setError(null);
+        } else {
+          setError("Risposta vuota dal server");
+        }
+      } else {
+        setError(body?.message ?? "Errore sconosciuto");
       }
     } catch {
       setError("Errore di rete, riprova");
