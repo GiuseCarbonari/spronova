@@ -21,10 +21,20 @@ export interface AICommentOutput {
   tokens_used: { prompt: number; completion: number };
 }
 
-/** Verifica se AI è configurata (chiave presente). */
+/** Provider attivo. Default groq: è il provider di produzione (vedi env). */
+function activeProvider(): "groq" | "anthropic" {
+  return process.env.COACH_AI_PROVIDER === "anthropic" ? "anthropic" : "groq";
+}
+
+/**
+ * Verifica se AI è configurata: la chiave deve corrispondere al provider
+ * SELEZIONATO, non a uno qualsiasi. Altrimenti isAIConfigured() mente (true) e
+ * generateComment() fallisce con 502 (bug: errore dal telefono, ok in locale).
+ */
 export function isAIConfigured(): boolean {
-  const apiKey = process.env.ANTHROPIC_API_KEY || process.env.GROQ_API_KEY;
-  return Boolean(apiKey);
+  return activeProvider() === "anthropic"
+    ? Boolean(process.env.ANTHROPIC_API_KEY)
+    : Boolean(process.env.GROQ_API_KEY);
 }
 
 /**
@@ -32,12 +42,10 @@ export function isAIConfigured(): boolean {
  * Lancia "AI_NOT_CONFIGURED" se nessuna API key.
  */
 export async function generateComment(input: AICommentInput): Promise<AICommentOutput> {
-  const provider = process.env.COACH_AI_PROVIDER || "anthropic";
-
-  if (provider === "groq") {
-    return generateCommentGroq(input);
+  if (activeProvider() === "anthropic") {
+    return generateCommentAnthropic(input);
   }
-  return generateCommentAnthropic(input);
+  return generateCommentGroq(input);
 }
 
 // --- ANTHROPIC -----------------------------------------------------------------
