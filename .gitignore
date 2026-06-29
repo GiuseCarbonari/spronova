@@ -39,3 +39,6 @@ next-env.d.ts
 
 # pipeline scratch (spec/changes/review handoffs, non codice)
 .pipeline/
+
+.vercel
+.env*

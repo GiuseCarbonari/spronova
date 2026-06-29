@@ -2,8 +2,18 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { driver, type DriveStep } from "driver.js";
-import "driver.js/dist/driver.css";
+import type { DriveStep } from "driver.js";
+
+// ponytail: driver.js (~30KB + CSS) si carica solo quando il tour parte davvero,
+// non nel bundle iniziale di ogni pagina (CurveLoadShell monta AppTour ovunque).
+async function loadDriver() {
+  const [{ driver }] = await Promise.all([
+    import("driver.js"),
+    // @ts-expect-error — CSS side-effect import, nessun tipo di modulo
+    import("driver.js/dist/driver.css"),
+  ]);
+  return driver;
+}
 
 const LS_KEY = "curveload_tour_v2";
 
@@ -68,6 +78,9 @@ export function AppTour() {
       // ── DASHBOARD: tour primo accesso ──────────────────────────────────
       if (pathname === "/dashboard" && !tourParam) {
         await waitForElement("tour-readiness");
+        if (cancelled) return;
+
+        const driver = await loadDriver();
         if (cancelled) return;
 
         const d = driver({
@@ -175,6 +188,9 @@ export function AppTour() {
         const hasGrid = await waitForElement("tour-week-grid", 1500);
         const hasPush = await waitForElement("tour-push-btn", 1000);
 
+        const driver = await loadDriver();
+        if (cancelled) return;
+
         const steps: DriveStep[] = [
           {
             element: "#tour-tab-plan",
@@ -254,6 +270,9 @@ export function AppTour() {
         if (cancelled) return;
 
         const hasCP = await waitForElement("tour-cp-hero", 1500);
+
+        const driver = await loadDriver();
+        if (cancelled) return;
 
         const steps: DriveStep[] = [
           {
