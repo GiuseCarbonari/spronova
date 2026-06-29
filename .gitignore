@@ -36,3 +36,6 @@ docs/Rampiconero_2024.gpx
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# pipeline scratch (spec/changes/review handoffs, non codice)
+.pipeline/

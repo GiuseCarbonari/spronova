@@ -259,6 +259,32 @@ describe("Migration 017: AI comment columns schema", () => {
   });
 });
 
+// --- Gating §4: sameLocalDay ---
+
+describe("Gating §4: sameLocalDay", () => {
+  // Replica esatta dell'helper presente nelle 3 route commenti.
+  function todayISO(): string {
+    return new Date().toLocaleDateString("en-CA");
+  }
+  function sameLocalDay(iso: string | null): boolean {
+    return iso != null && new Date(iso).toLocaleDateString("en-CA") === todayISO();
+  }
+
+  test("oggi → true", () => {
+    assert.ok(sameLocalDay(new Date().toISOString()), "Timestamp di oggi gated");
+  });
+
+  test("ieri → false", () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    assert.ok(!sameLocalDay(yesterday.toISOString()), "Timestamp di ieri non gated");
+  });
+
+  test("null → false", () => {
+    assert.ok(!sameLocalDay(null), "Mai generato → non gated");
+  });
+});
+
 // --- AI Comment Constraints Tests ---
 
 describe("AI comment quality constraints", () => {

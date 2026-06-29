@@ -1,6 +1,6 @@
 {
   "name": "curveload",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
   "description": "CurveLoad — implementazione web multi-utente del protocollo Section 11, con Intervals.icu come fonte dati.",
   "scripts": {
@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --import tsx --test tests/readiness.test.ts tests/intervals-client.test.ts tests/power-profile.test.ts tests/pace-profile.test.ts tests/race-estimator.test.ts tests/planner.test.ts tests/velocity-signature.test.ts tests/intervals-workout-format.test.ts tests/session-persistence.test.ts tests/gpx-parser.test.ts tests/gap-analysis.test.ts tests/reconcile.test.ts tests/comments-ai.test.ts"
+    "test": "node --import tsx --test tests/readiness.test.ts tests/intervals-client.test.ts tests/power-profile.test.ts tests/pace-profile.test.ts tests/race-estimator.test.ts tests/planner.test.ts tests/velocity-signature.test.ts tests/intervals-workout-format.test.ts tests/session-persistence.test.ts tests/gpx-parser.test.ts tests/gap-analysis.test.ts tests/reconcile.test.ts tests/comments-ai.test.ts tests/plan-diff.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.69.0",

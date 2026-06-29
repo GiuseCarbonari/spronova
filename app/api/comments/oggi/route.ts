@@ -20,6 +20,11 @@ function todayISO(): string {
   return new Date().toLocaleDateString("en-CA");
 }
 
+/** True se l'ISO timestamp cade nello stesso giorno locale di oggi. */
+function sameLocalDay(iso: string | null): boolean {
+  return iso != null && new Date(iso).toLocaleDateString("en-CA") === todayISO();
+}
+
 /** Simple delta trend for 14-day window: (newest - oldest) / oldest * 100. */
 function computeTrend(values: (number | null)[]): string {
   const filtered = values.filter((v) => v != null && Number.isFinite(v)) as number[];
@@ -34,6 +39,8 @@ function computeTrend(values: (number | null)[]): string {
 interface ProfileRow {
   nome: string | null;
   injury_periods: InjuryPeriod[] | null;
+  ai_comment_oggi: string | null;
+  ai_comment_oggi_at: string | null;
 }
 
 export async function POST(request: Request) {
@@ -56,7 +63,7 @@ export async function POST(request: Request) {
   const [profileRes, snapshotRes] = await Promise.all([
     supabase
       .from("athlete_profiles")
-      .select("nome, injury_periods")
+      .select("nome, injury_periods, ai_comment_oggi, ai_comment_oggi_at")
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase
@@ -70,6 +77,17 @@ export async function POST(request: Request) {
 
   const profile = (profileRes?.data ?? null) as ProfileRow | null;
   const mirror = (snapshotRes?.data?.mirror_data ?? null) as MirrorData | null;
+
+  // Gating giornaliero: già generato oggi → non rigenerare, non chiamare Groq.
+  if (sameLocalDay(profile?.ai_comment_oggi_at ?? null)) {
+    return NextResponse.json({
+      success: true,
+      configured: true,
+      comment: profile?.ai_comment_oggi ?? null,
+      generated_at: profile?.ai_comment_oggi_at ?? null,
+      gated: true,
+    });
+  }
 
   if (!mirror) {
     return NextResponse.json(

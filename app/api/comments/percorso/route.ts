@@ -50,6 +50,18 @@ interface ProfileRow {
   gap_analysis: GapAnalysis | null;
   race_estimate: RaceEstimate | null;
   gare_target: TargetEvent[] | null;
+  ai_comment_percorso: string | null;
+  ai_comment_percorso_at: string | null;
+}
+
+/** Local date YYYY-MM-DD. */
+function todayISO(): string {
+  return new Date().toLocaleDateString("en-CA");
+}
+
+/** True se l'ISO timestamp cade nello stesso giorno locale di oggi. */
+function sameLocalDay(iso: string | null): boolean {
+  return iso != null && new Date(iso).toLocaleDateString("en-CA") === todayISO();
 }
 
 export async function POST(request: NextRequest) {
@@ -73,12 +85,23 @@ export async function POST(request: NextRequest) {
   const { data: profileRow } = await supabase
     .from("athlete_profiles")
     .select(
-      "nome, profile_data, event_terrain, gap_analysis, race_estimate, gare_target"
+      "nome, profile_data, event_terrain, gap_analysis, race_estimate, gare_target, ai_comment_percorso, ai_comment_percorso_at"
     )
     .eq("user_id", user.id)
     .maybeSingle();
 
   const profile = (profileRow ?? null) as ProfileRow | null;
+
+  // Gating giornaliero: già generato oggi → non rigenerare, non chiamare Groq.
+  if (sameLocalDay(profile?.ai_comment_percorso_at ?? null)) {
+    return NextResponse.json({
+      success: true,
+      configured: true,
+      comment: profile?.ai_comment_percorso ?? null,
+      generated_at: profile?.ai_comment_percorso_at ?? null,
+      gated: true,
+    });
+  }
 
   // Graceful degradation: if no terrain data, comment cannot be generated
   if (!profile?.event_terrain) {

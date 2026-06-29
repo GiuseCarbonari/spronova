@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 
 import { GenerateWeekButton } from "@/components/plan/generate-week-button";
+import { PlanDiffNotice } from "@/components/plan/plan-diff-notice";
 import { PushButton } from "@/components/plan/push-button";
 import { RedistributeSection } from "@/components/plan/redistribute-section";
 import { CurveLoadShell } from "@/components/layout/curveload-shell";
 import type { BuiltSession } from "@/lib/planner/build-week";
+import { diffPlan } from "@/lib/planner/plan-diff";
 import type { Phase } from "@/lib/planner/phase-detector";
 import type { DayKey } from "@/lib/planner/session-selector";
 import type { MirrorData } from "@/lib/intervals/sync";
@@ -34,6 +36,7 @@ interface PlanRow {
   } | null;
   generated_at: string;
   pushed_at: string | null;
+  pushed_snapshot: BuiltSession[] | null;
 }
 
 function formatWeekRange(weekStart: string): string {
@@ -90,7 +93,7 @@ export default async function PlanPage() {
       supabase
         .from("weekly_plans")
         .select(
-          "week_start, phase, sessions, narrative, validation_metadata, generated_at, pushed_at"
+          "week_start, phase, sessions, narrative, validation_metadata, generated_at, pushed_at, pushed_snapshot"
         )
         .eq("user_id", user.id)
         .order("generated_at", { ascending: false })
@@ -120,6 +123,7 @@ export default async function PlanPage() {
   const todayDate = new Date().toISOString().slice(0, 10);
 
   const weekStats = plan ? computeWeekStats(plan.sessions) : null;
+  const planChanges = diffPlan(plan?.pushed_snapshot ?? null, plan?.sessions ?? []);
   const meta = plan?.validation_metadata ?? null;
   const daysToEvent = meta?.days_to_event ?? null;
   const completionByDate = plan
@@ -220,6 +224,7 @@ export default async function PlanPage() {
       {plan && (
         <div className="space-y-2">
           <StepMarker number="3" title="Carica" subtitle="Settimana su Intervals" />
+          <PlanDiffNotice changes={planChanges} />
           <PushButton
             pushedAt={plan.pushed_at}
             canWriteCalendar={canWriteCalendar}

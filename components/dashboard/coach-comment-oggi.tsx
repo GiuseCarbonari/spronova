@@ -18,6 +18,7 @@ export function CoachCommentOggi({
     loading,
     error,
     configured,
+    gatedToday,
     regenerate,
   } = useAIComment("oggi", initialComment, initialGeneratedAt);
 
@@ -33,6 +34,7 @@ export function CoachCommentOggi({
         loading={loading}
         error={error}
         configured={configured}
+        canRegenerate={!gatedToday}
         onRegenerate={regenerate}
       />
     </section>
