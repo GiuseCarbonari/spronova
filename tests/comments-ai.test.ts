@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test, describe } from "node:test";
+import { test, describe, after } from "node:test";
 
 /**
  * Test suite per le route IA commenti (OGGI/PROFILO/PERCORSO).
@@ -8,6 +8,50 @@ import { test, describe } from "node:test";
  * payload building). I test di integrazione HTTP richiedono un'ambiente con auth
  * Supabase reale (vedi test-comments-integration.md per test end-to-end).
  */
+
+// --- Provider selection (regression: errore dal telefono, ok in locale) ---
+
+describe("isAIConfigured: chiave deve corrispondere al provider selezionato", () => {
+  const save = {
+    provider: process.env.COACH_AI_PROVIDER,
+    groq: process.env.GROQ_API_KEY,
+    anthropic: process.env.ANTHROPIC_API_KEY,
+  };
+
+  function setEnv(provider?: string, groq?: string, anthropic?: string) {
+    if (provider === undefined) delete process.env.COACH_AI_PROVIDER;
+    else process.env.COACH_AI_PROVIDER = provider;
+    if (groq === undefined) delete process.env.GROQ_API_KEY;
+    else process.env.GROQ_API_KEY = groq;
+    if (anthropic === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = anthropic;
+  }
+
+  function fresh() {
+    // import dinamico per leggere le env appena impostate
+    delete require.cache[require.resolve("../lib/ai/groq-provider.ts")];
+    return require("../lib/ai/groq-provider.ts") as {
+      isAIConfigured: () => boolean;
+    };
+  }
+
+  test("default (no provider) = groq: serve GROQ_API_KEY, non ANTHROPIC", () => {
+    setEnv(undefined, undefined, "sk-ant");
+    assert.equal(fresh().isAIConfigured(), false, "groq selezionato ma manca GROQ key");
+    setEnv(undefined, "gsk-x", undefined);
+    assert.equal(fresh().isAIConfigured(), true, "GROQ key presente → ok");
+  });
+
+  test("provider=anthropic: serve ANTHROPIC_API_KEY, non GROQ", () => {
+    setEnv("anthropic", "gsk-x", undefined);
+    assert.equal(fresh().isAIConfigured(), false, "anthropic ma manca ANTHROPIC key");
+    setEnv("anthropic", undefined, "sk-ant");
+    assert.equal(fresh().isAIConfigured(), true, "ANTHROPIC key presente → ok");
+  });
+
+  // ripristina env reali dopo i test
+  after(() => setEnv(save.provider, save.groq, save.anthropic));
+});
 
 // --- OGGI Route Logic Tests ---
 
