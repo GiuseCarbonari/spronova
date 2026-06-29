@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { generateWeekNarrative, isAIConfigured } from "@/lib/ai/provider";
 import type { MirrorData } from "@/lib/intervals/sync";
 import { buildWeek, type BuiltSession } from "@/lib/planner/build-week";
+import { diffPlan } from "@/lib/planner/plan-diff";
 import { isInjured } from "@/lib/planner/injury";
 import { detectPhase, type Phase } from "@/lib/planner/phase-detector";
 import { computeProgressionStateByFormat } from "@/lib/planner/progression";
@@ -162,7 +163,7 @@ export async function POST() {
   const weekStart = currentMonday();
   const { data: existingPlanRow } = await supabase
     .from("weekly_plans")
-    .select("sessions")
+    .select("sessions, pushed_snapshot")
     .eq("user_id", user.id)
     .eq("week_start", weekStart)
     .maybeSingle();
@@ -424,6 +425,13 @@ export async function POST() {
   const warning =
     [preservedNote, decisionsWarning].filter(Boolean).join(" ") || null;
 
+  // Conteggio sedute cambiate vs piano INVIATO (non vs precedente). Base del
+  // banner sintetico in OGGI. null/[] snapshot → 0 (piano mai inviato).
+  const changedCount = diffPlan(
+    (existingPlanRow?.pushed_snapshot ?? null) as BuiltSession[] | null,
+    week.sessions
+  ).length;
+
   return NextResponse.json({
     success: true,
     phase: phaseResult.phase,
@@ -434,6 +442,7 @@ export async function POST() {
     audit: week.audit,
     narrative,
     preserved_days: preservedCount,
+    changed_count: changedCount,
     warning,
   });
 }

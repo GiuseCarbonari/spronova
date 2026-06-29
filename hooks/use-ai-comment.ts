@@ -10,6 +10,8 @@ interface UseAICommentResult {
   loading: boolean;
   error: string | null;
   configured: boolean;
+  /** True se il commento corrente è già stato generato oggi (gating §4). */
+  gatedToday: boolean;
   regenerate: () => Promise<void>;
 }
 
@@ -48,6 +50,7 @@ export function useAIComment(
         configured?: boolean;
         comment?: string;
         generated_at?: string;
+        gated?: boolean;
         error?: string;
         message?: string;
       } | null;
@@ -88,12 +91,18 @@ export function useAIComment(
     }
   };
 
+  const today = new Date().toLocaleDateString("en-CA");
+  const gatedToday =
+    generatedAt != null &&
+    new Date(generatedAt).toLocaleDateString("en-CA") === today;
+
   return {
     comment,
     generatedAt,
     loading,
     error,
     configured,
+    gatedToday,
     regenerate,
   };
 }

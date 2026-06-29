@@ -19,9 +19,21 @@ interface RPPPoint {
   watts_1y: number | null;
 }
 
+/** Local date YYYY-MM-DD. */
+function todayISO(): string {
+  return new Date().toLocaleDateString("en-CA");
+}
+
+/** True se l'ISO timestamp cade nello stesso giorno locale di oggi. */
+function sameLocalDay(iso: string | null): boolean {
+  return iso != null && new Date(iso).toLocaleDateString("en-CA") === todayISO();
+}
+
 interface ProfileRow {
   nome: string | null;
   profile_data: AthleteProfileData | null;
+  ai_comment_profilo: string | null;
+  ai_comment_profilo_at: string | null;
 }
 
 /** Compare RPP trend: current vs best 1y across durations. */
@@ -61,11 +73,23 @@ export async function POST(request: NextRequest) {
 
   const { data: profileRow } = await supabase
     .from("athlete_profiles")
-    .select("nome, profile_data")
+    .select("nome, profile_data, ai_comment_profilo, ai_comment_profilo_at")
     .eq("user_id", user.id)
     .maybeSingle();
 
   const profile = (profileRow ?? null) as ProfileRow | null;
+
+  // Gating giornaliero: già generato oggi → non rigenerare, non chiamare Groq.
+  if (sameLocalDay(profile?.ai_comment_profilo_at ?? null)) {
+    return NextResponse.json({
+      success: true,
+      configured: true,
+      comment: profile?.ai_comment_profilo ?? null,
+      generated_at: profile?.ai_comment_profilo_at ?? null,
+      gated: true,
+    });
+  }
+
   if (!profile?.profile_data) {
     return NextResponse.json(
       {

@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 
 import { ConditionTrendChart } from "@/components/dashboard/condition-trend-chart";
 import { MetricsGrid } from "@/components/dashboard/metrics-grid";
+import { AutoUpdateOrchestrator } from "@/components/dashboard/auto-update-orchestrator";
 import { ReadinessRing } from "@/components/dashboard/readiness-ring";
-import { RefreshControl } from "@/components/dashboard/refresh-control";
 import { TodaySessionCard } from "@/components/dashboard/today-session-card";
 import { CoachCommentOggi } from "@/components/dashboard/coach-comment-oggi";
 import { CurveLoadShell } from "@/components/layout/curveload-shell";
@@ -274,10 +274,11 @@ export default async function DashboardPage() {
         </a>
       </div>
 
-      {/* Refresh action — sempre in cima */}
-      <RefreshControl
+      {/* Auto-aggiornamento (sync + commenti + piano + profilo) — sempre in cima */}
+      <AutoUpdateOrchestrator
         lastFetchedAt={lastFetchedAt}
         initialStatus={initialStatus}
+        hasMirror={!!mirror}
       />
 
       {/* No data state */}

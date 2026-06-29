@@ -303,6 +303,7 @@ export async function POST(request: Request) {
     .from("weekly_plans")
     .update({
       pushed_at: pushedAt,
+      pushed_snapshot: plan.sessions, // snapshot per il diff "cosa è cambiato"
       intervals_event_uids: eventUids,
       last_push_status: "success",
     })

@@ -11,6 +11,8 @@ interface CoachCommentCardProps {
   loading: boolean;
   error: string | null;
   configured: boolean;
+  /** False quando il commento è già di oggi (gating §4): nasconde Rigenera/Genera. */
+  canRegenerate?: boolean;
   onRegenerate: () => Promise<void>;
 }
 
@@ -45,6 +47,7 @@ export function CoachCommentCard({
   loading,
   error,
   configured,
+  canRegenerate = true,
   onRegenerate,
 }: CoachCommentCardProps) {
   if (!configured) {
@@ -90,25 +93,27 @@ export function CoachCommentCard({
         <div className="rounded-[16px] border border-border bg-surface px-4 py-4 text-center text-sm text-muted">
           Nessun commento ancora
         </div>
-        <Button
-          onClick={onRegenerate}
-          disabled={loading}
-          variant="outline"
-          size="sm"
-          className="w-full"
-        >
-          {loading ? (
-            <>
-              <RefreshCw className="h-4 w-4 animate-spin" aria-hidden />
-              Generazione in corso…
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4" aria-hidden />
-              Genera commento
-            </>
-          )}
-        </Button>
+        {canRegenerate && (
+          <Button
+            onClick={onRegenerate}
+            disabled={loading}
+            variant="outline"
+            size="sm"
+            className="w-full"
+          >
+            {loading ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" aria-hidden />
+                Generazione in corso…
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" aria-hidden />
+                Genera commento
+              </>
+            )}
+          </Button>
+        )}
       </div>
     );
   }
@@ -122,24 +127,26 @@ export function CoachCommentCard({
       </div>
       <div className="flex items-center justify-between">
         <span className="text-xs text-faint">{formatAITimestamp(generatedAt)}</span>
-        <Button
-          onClick={onRegenerate}
-          disabled={loading}
-          variant="ghost"
-          size="sm"
-        >
-          {loading ? (
-            <>
-              <RefreshCw className="h-4 w-4 animate-spin" aria-hidden />
-              <span className="ml-1.5">Generazione…</span>
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4" aria-hidden />
-              <span className="ml-1.5">Rigenera</span>
-            </>
-          )}
-        </Button>
+        {canRegenerate && (
+          <Button
+            onClick={onRegenerate}
+            disabled={loading}
+            variant="ghost"
+            size="sm"
+          >
+            {loading ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" aria-hidden />
+                <span className="ml-1.5">Generazione…</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" aria-hidden />
+                <span className="ml-1.5">Rigenera</span>
+              </>
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );
