@@ -328,7 +328,7 @@ export default function LoginPage() {
                         className="h-1 flex-1 rounded-full transition-colors"
                         style={{
                           backgroundColor:
-                            pwStrength.score >= i ? pwStrength.color : "var(--color-border)",
+                            pwStrength.score >= i ? pwStrength.color : "var(--border)",
                         }}
                       />
                     ))}
@@ -423,19 +423,19 @@ export default function LoginPage() {
             </label>
           )}
 
-          {/* Errore */}
-          {error && (
-            <div className="rounded-[9px] border-[0.5px] border-ready-skip-border bg-surface px-3 py-2 text-[13px] text-ready-skip">
-              {error}
-            </div>
-          )}
-
-          {/* Notice */}
-          {notice && (
-            <div className="rounded-[9px] border-[0.5px] border-border bg-surface-2 px-3 py-2 text-[13px] text-secondary">
-              {notice}
-            </div>
-          )}
+          {/* Errore / notice — annunciati dagli screen reader */}
+          <div aria-live="polite">
+            {error && (
+              <div className="rounded-[9px] border-[0.5px] border-ready-skip-border bg-surface px-3 py-2 text-[13px] text-ready-skip">
+                {error}
+              </div>
+            )}
+            {notice && (
+              <div className="rounded-[9px] border-[0.5px] border-border bg-surface-2 px-3 py-2 text-[13px] text-secondary">
+                {notice}
+              </div>
+            )}
+          </div>
 
           {/* Bottone primario */}
           <button
