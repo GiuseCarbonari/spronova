@@ -6,6 +6,7 @@ import { AutoUpdateOrchestrator } from "@/components/dashboard/auto-update-orche
 import { ReadinessRing } from "@/components/dashboard/readiness-ring";
 import { TodaySessionCard } from "@/components/dashboard/today-session-card";
 import { CoachCommentOggi } from "@/components/dashboard/coach-comment-oggi";
+import { CoachAskPanel } from "@/components/coach/coach-ask-panel";
 import { CurveLoadShell } from "@/components/layout/curveload-shell";
 import { latestHrvMeasurement, normalizeHrvProtocol } from "@/lib/hrv";
 import type { BuiltSession } from "@/lib/planner/build-week";
@@ -314,6 +315,9 @@ export default async function DashboardPage() {
           }
         />
       )}
+
+      {/* Coach AI: Q&A + report pre-allenamento */}
+      <CoachAskPanel />
 
       {/* Seduta di oggi */}
       {todaySession && (
